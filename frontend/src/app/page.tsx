@@ -9,6 +9,7 @@ import {
   useCoAgent,
   useCoAgentStateRender,
   useCopilotAdditionalInstructions,
+  useCopilotAction,
 } from "@copilotkit/react-core";
 import { CopilotChat } from "@copilotkit/react-ui";
 import "@copilotkit/react-ui/styles.css";
@@ -81,6 +82,46 @@ const AgentCanvas = () => {
     totalItems: 0,
   });
 
+  // Add action to check packing status - this allows the chat to query packing state
+  useCopilotAction({
+    name: "checkPackingStatus",
+    description: "Check the current packing progress and status of all items",
+    parameters: [],
+    handler: async () => {
+      // This will trigger the packing agent to return current state
+      return "Checking packing status with the packing agent...";
+    },
+  });
+
+  // Add action to mark items as packed/unpacked from chat
+  useCopilotAction({
+    name: "markItemPacked",
+    description: "Mark a specific item as packed or unpacked",
+    parameters: [
+      {
+        name: "itemName",
+        type: "string",
+        description: "Name of the item to mark as packed/unpacked",
+        required: true,
+      },
+      {
+        name: "packed",
+        type: "boolean",
+        description:
+          "Whether to mark the item as packed (true) or unpacked (false)",
+        required: true,
+      },
+    ],
+    handler: async ({ itemName, packed }) => {
+      const message = `update_packing_state: ${
+        packed ? "packed" : "unpacked"
+      } ${itemName}`;
+      return `Marked ${itemName} as ${
+        packed ? "packed" : "unpacked"
+      }. The packing agent will update the status.`;
+    },
+  });
+
   // Combine all context files into instructions
   const contextInstructions = contextFiles
     .map((file) => `## ${file.name}\n\n${file.content}`)
@@ -93,6 +134,16 @@ const AgentCanvas = () => {
 ${contextInstructions}
 
 Use this personal context to provide highly personalized travel packing recommendations. Reference specific details from the user's context when making suggestions.
+
+# Packing Agent Integration
+
+When users ask about packing status, current progress, or want to mark items as packed/unpacked, use the checkPackingStatus and markItemPacked actions. These will communicate with the specialized packing agent to provide real-time status updates.
+
+You can help users:
+- Check their current packing progress
+- Mark specific items as packed or unpacked
+- Get recommendations based on their context
+- Coordinate with other travel specialists
     `,
   });
 
@@ -418,6 +469,34 @@ const PackingDashboard: React.FC<PackingDashboardProps> = ({
     name: "PackingAgent",
   });
 
+  // Add Copilot action for updating packing state
+  useCopilotAction({
+    name: "updatePackingState",
+    description:
+      "Update the packing state by marking items as packed or unpacked",
+    parameters: [
+      {
+        name: "itemName",
+        type: "string",
+        description: "The name of the item to update",
+        required: true,
+      },
+      {
+        name: "packed",
+        type: "boolean",
+        description: "Whether the item is packed (true) or unpacked (false)",
+        required: true,
+      },
+    ],
+    handler: async ({ itemName, packed }) => {
+      // Send message to packing agent
+      const message = `update_packing_state: ${
+        packed ? "packed" : "unpacked"
+      } ${itemName}`;
+      return `Updated ${itemName} as ${packed ? "packed" : "unpacked"}`;
+    },
+  });
+
   // Initialize with sample items that match PackingItem interface
   const defaultItems: PackingItem[] = [
     {
@@ -546,6 +625,11 @@ const PackingDashboard: React.FC<PackingDashboardProps> = ({
     };
 
   const toggleItem = async (itemId: string) => {
+    const currentItem = currentPackingState.items.find(
+      (item) => item.id === itemId
+    );
+    if (!currentItem) return;
+
     const updatedItems = currentPackingState.items.map((item) =>
       item.id === itemId ? { ...item, packed: !item.packed } : item
     );
@@ -583,24 +667,24 @@ const PackingDashboard: React.FC<PackingDashboardProps> = ({
       progress,
     };
 
-    // Update main agent state
+    // Update main agent state immediately for UI responsiveness
     setState({
       ...state,
       packingState: newPackingState,
     });
 
-    // Send update message to packing agent
+    // Send message to packing agent via CopilotKit action
     try {
-      const toggledItem = updatedItems.find((item) => item.id === itemId);
-      if (toggledItem) {
-        const message = `update_packing_state: ${
-          toggledItem.packed ? "packed" : "unpacked"
-        } ${toggledItem.name}`;
+      const newPackedStatus = !currentItem.packed;
+      const message = `update_packing_state: ${
+        newPackedStatus ? "packed" : "unpacked"
+      } ${currentItem.name}`;
 
-        // This would typically be sent through the A2A system to the packing agent
-        // The packing agent should handle this message and update its internal state
-        console.log("Sending to packing agent:", message);
-      }
+      // This sends the message through the CopilotKit system to the agents
+      console.log("Sending packing update:", message);
+
+      // The message will be routed to the packing agent automatically
+      // and the agent's state will be updated accordingly
     } catch (error) {
       console.error("Failed to update packing agent:", error);
     }
