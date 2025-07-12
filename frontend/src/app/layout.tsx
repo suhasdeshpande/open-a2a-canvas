@@ -26,8 +26,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <CopilotKit runtimeUrl={process.env.NEXT_PUBLIC_COPILOTKIT_RUNTIME_URL}>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
+        <CopilotKit runtimeUrl="/api/copilotkit" agent="theDirtyDogs">
           {children}
         </CopilotKit>
       </body>

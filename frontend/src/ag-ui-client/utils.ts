@@ -1,10 +1,12 @@
-import { A2AClient, AgentCard, SendMessageResponse, SendMessageSuccessResponse } from "@a2a-js/sdk";
-import { BaseEvent, EventType, Message, RunAgentInput, TextMessageChunkEvent } from "@ag-ui/client";
-import { CoreMessage, LanguageModel, processDataStream, streamText, ToolSet } from "ai";
-import { tool, generateText } from "ai";
+import { AgentCard } from "@a2a-js/sdk";
+import { Message, RunAgentInput } from "@ag-ui/client";
+import { CoreMessage, tool, ToolSet } from "ai";
 import { z } from "zod";
 
-export const createSystemPrompt = (agentCards: AgentCard[], additionalInstructions?: string) => `
+export const createSystemPrompt = (
+  agentCards: AgentCard[],
+  additionalInstructions?: string
+) => `
 **Role:** You are an expert Routing Delegator. Your primary function is to accurately delegate user inquiries to the appropriate specialized remote agents.
 
 **Instructions:** 
@@ -15,7 +17,11 @@ NEVER STOP COMMUNICATING WITH THE AGENTS UNTIL THE TASK IS COMPLETED.
 
 If you have tools available to display information to the user, you MUST use them.
 
-${additionalInstructions ? `**Additional Instructions:**\n${additionalInstructions}` : ""}
+${
+  additionalInstructions
+    ? `**Additional Instructions:**\n${additionalInstructions}`
+    : ""
+}
 
 **Core Directives:**
 
@@ -33,15 +39,24 @@ ${additionalInstructions ? `**Additional Instructions:**\n${additionalInstructio
 **Agent Roster:**
 
 * Available Agents: 
-${JSON.stringify(agentCards.map((agent) => ({ name: agent.name, description: agent.description })))}
+${JSON.stringify(
+  agentCards.map((agent) => ({
+    name: agent.name,
+    description: agent.description,
+  }))
+)}
 `;
 
-export function convertMessagesToVercelAISDKMessages(messages: Message[]): CoreMessage[] {
+export function convertMessagesToVercelAISDKMessages(
+  messages: Message[]
+): CoreMessage[] {
   const result: CoreMessage[] = [];
 
   for (const message of messages) {
     if (message.role === "assistant") {
-      const parts: any[] = message.content ? [{ type: "text", text: message.content }] : [];
+      const parts: any[] = message.content
+        ? [{ type: "text", text: message.content }]
+        : [];
       for (const toolCall of message.toolCalls ?? []) {
         parts.push({
           type: "tool-call",
@@ -88,7 +103,10 @@ export function convertMessagesToVercelAISDKMessages(messages: Message[]): CoreM
   return result;
 }
 
-export function convertJsonSchemaToZodSchema(jsonSchema: any, required: boolean): z.ZodSchema {
+export function convertJsonSchemaToZodSchema(
+  jsonSchema: any,
+  required: boolean
+): z.ZodSchema {
   if (jsonSchema.type === "object") {
     const spec: { [key: string]: z.ZodSchema } = {};
 
@@ -99,7 +117,7 @@ export function convertJsonSchemaToZodSchema(jsonSchema: any, required: boolean)
     for (const [key, value] of Object.entries(jsonSchema.properties)) {
       spec[key] = convertJsonSchemaToZodSchema(
         value,
-        jsonSchema.required ? jsonSchema.required.includes(key) : false,
+        jsonSchema.required ? jsonSchema.required.includes(key) : false
       );
     }
     let schema = z.object(spec).describe(jsonSchema.description);
@@ -121,7 +139,9 @@ export function convertJsonSchemaToZodSchema(jsonSchema: any, required: boolean)
   throw new Error("Invalid JSON schema");
 }
 
-export function convertToolToVercelAISDKTools(tools: RunAgentInput["tools"]): ToolSet {
+export function convertToolToVercelAISDKTools(
+  tools: RunAgentInput["tools"]
+): ToolSet {
   return tools.reduce(
     (acc: ToolSet, t: RunAgentInput["tools"][number]) => ({
       ...acc,
@@ -130,6 +150,6 @@ export function convertToolToVercelAISDKTools(tools: RunAgentInput["tools"]): To
         parameters: convertJsonSchemaToZodSchema(t.parameters, true),
       }),
     }),
-    {},
+    {}
   );
 }
