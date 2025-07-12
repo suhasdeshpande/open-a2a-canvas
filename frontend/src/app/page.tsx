@@ -8,11 +8,11 @@ import {
   CopilotKit,
   useCoAgent,
   useCoAgentStateRender,
-  useCopilotChat,
+  useCopilotAdditionalInstructions,
 } from "@copilotkit/react-core";
 import { CopilotChat } from "@copilotkit/react-ui";
 import "@copilotkit/react-ui/styles.css";
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 
 export default function Home() {
   return (
@@ -37,8 +37,72 @@ interface A2AState {
   a2aMessages: A2AMessage[];
 }
 
+interface ContextFile {
+  name: string;
+  content: string;
+  type: string;
+}
+
+interface PackingItem {
+  name: string;
+  category: string;
+  priority: "essential" | "recommended" | "optional";
+  packed: boolean;
+}
+
+interface PackingState {
+  items: PackingItem[];
+  categories: Record<string, { packed: number; total: number }>;
+  progress: number;
+}
+
 const AgentCanvas = () => {
   const { state } = useCoAgent<A2AState>({ name: "theDirtyDogs" });
+  const [contextFiles, setContextFiles] = useState<ContextFile[]>([
+    {
+      name: "trip-overview.md",
+      content:
+        "# Trip Overview\n\nDestination: Not specified\nDuration: Not specified\nPurpose: Not specified",
+      type: "overview",
+    },
+  ]);
+  const [packingState, setPackingState] = useState<PackingState>({
+    items: [],
+    categories: {},
+    progress: 0,
+  });
+
+  // Combine all context files into instructions
+  const contextInstructions = contextFiles
+    .map((file) => `## ${file.name}\n\n${file.content}`)
+    .join("\n\n---\n\n");
+
+  useCopilotAdditionalInstructions({
+    instructions: `
+# Personal Travel Context
+
+${contextInstructions}
+
+Use this personal context to provide highly personalized travel packing recommendations. Reference specific details from the user's context when making suggestions.
+    `,
+  });
+
+  const addContextFile = useCallback(
+    (name: string, content: string, type: string) => {
+      setContextFiles((prev) => [...prev, { name, content, type }]);
+    },
+    []
+  );
+
+  const updateContextFile = useCallback((index: number, content: string) => {
+    setContextFiles((prev) =>
+      prev.map((file, i) => (i === index ? { ...file, content } : file))
+    );
+  }, []);
+
+  const removeContextFile = useCallback((index: number) => {
+    setContextFiles((prev) => prev.filter((_, i) => i !== index));
+  }, []);
 
   // Render agent communication state
   useCoAgentStateRender<A2AState>({
@@ -92,19 +156,41 @@ const AgentCanvas = () => {
   return (
     <div className="h-screen bg-white">
       <ResizablePanelGroup direction="horizontal">
-        {/* Left panel - Chat */}
-        <ResizablePanel defaultSize={50} minSize={30} maxSize={70}>
+        {/* Left panel - Context Engineering */}
+        <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
+          <ContextEngineering
+            contextFiles={contextFiles}
+            onAddFile={addContextFile}
+            onUpdateFile={updateContextFile}
+            onRemoveFile={removeContextFile}
+          />
+        </ResizablePanel>
+
+        <ResizableHandle withHandle />
+
+        {/* Middle panel - Smart Packing Assistant State */}
+        <ResizablePanel defaultSize={35} minSize={25} maxSize={50}>
+          <PackingDashboard
+            packingState={packingState}
+            onUpdatePacking={setPackingState}
+          />
+        </ResizablePanel>
+
+        <ResizableHandle withHandle />
+
+        {/* Right panel - Chat */}
+        <ResizablePanel defaultSize={40} minSize={30} maxSize={60}>
           <div className="relative h-full flex flex-col">
             <div className="flex-1 p-4 overflow-hidden">
               <div className="h-full flex flex-col">
                 <CopilotChat
                   instructions={
-                    "You are the ultimate travel packing coordinator working with specialized travel agents. Help users pack perfectly for any trip by coordinating with expert agents for clothing, personal belongings, documents, research, and packing strategy."
+                    "You are the ultimate travel packing coordinator working with specialized travel agents. Help users pack perfectly for any trip by coordinating with expert agents for clothing, personal belongings, documents, research, and packing strategy. Use the provided personal context to make highly personalized recommendations."
                   }
                   labels={{
                     title: "🧳 Travel Packing Assistant",
                     initial:
-                      "Hi! I'm your travel packing coordinator. I work with expert agents to help you pack perfectly for any trip!\n\n🌍 Try saying:\n\"I am traveling to Tokyo for 7 days. I need to pack for the trip.\"\n\n✈️ Or ask about:\n• Clothing for specific destinations\n• Required travel documents\n• Personal items and electronics\n• Destination research and tips\n\nI'll coordinate with my specialist agents to give you comprehensive packing advice!",
+                      "Hi! I'm your travel packing coordinator. I work with expert agents to help you pack perfectly for any trip!\n\n🌍 Add your travel context files on the left, then try saying:\n\"I am traveling to Tokyo for 7 days. I need to pack for the trip.\"\n\n✈️ Or ask about:\n• Clothing for specific destinations\n• Required travel documents\n• Personal items and electronics\n• Destination research and tips\n\nI'll coordinate with my specialist agents to give you comprehensive packing advice!",
                   }}
                   className="h-full rounded-lg shadow-lg [&_.copilotKitMessages]:overflow-y-auto [&_.copilotKitMessages]:max-h-full [&_.copilotKitMessagesContainer]:flex [&_.copilotKitMessagesContainer]:flex-col [&_.copilotKitMessagesContainer]:h-full"
                 />
@@ -112,108 +198,399 @@ const AgentCanvas = () => {
             </div>
           </div>
         </ResizablePanel>
+      </ResizablePanelGroup>
+    </div>
+  );
+};
 
-        <ResizableHandle withHandle />
+interface ContextEngineeringProps {
+  contextFiles: ContextFile[];
+  onAddFile: (name: string, content: string, type: string) => void;
+  onUpdateFile: (index: number, content: string) => void;
+  onRemoveFile: (index: number) => void;
+}
 
-        {/* Right panel - Agent Status Dashboard */}
-        <ResizablePanel defaultSize={50} minSize={30} maxSize={70}>
-          <div className="flex flex-col h-full p-4">
-            <div className="mb-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-1">
-                Agents
-              </h2>
-              <p className="text-gray-500 text-xs">
-                6 specialists ready to help with travel packing
-              </p>
-            </div>
+const ContextEngineering: React.FC<ContextEngineeringProps> = ({
+  contextFiles,
+  onAddFile,
+  onUpdateFile,
+  onRemoveFile,
+}) => {
+  const [newFileName, setNewFileName] = useState("");
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
-            <div className="flex-1 space-y-6 overflow-y-auto">
-              {/* Agent Status Cards */}
-              <div className="space-y-2">
-                <AgentStatusCard
-                  name="Personal Belongings"
-                  port="9997"
-                  description="Electronics, toiletries, accessories"
-                  status="active"
-                  lastActivity="Available"
-                />
-                <AgentStatusCard
-                  name="Clothing Agent"
-                  port="9998"
-                  description="Weather-appropriate clothing recommendations"
-                  status="active"
-                  lastActivity="Available"
-                />
-                <AgentStatusCard
-                  name="Search Agent"
-                  port="9999"
-                  description="Web search using Exa API"
-                  status="active"
-                  lastActivity="Available"
-                />
-                <AgentStatusCard
-                  name="Documents Agent"
-                  port="9995"
-                  description="Visas, passports, travel insurance"
-                  status="active"
-                  lastActivity="Available"
-                />
-                <AgentStatusCard
-                  name="Research Agent"
-                  port="9996"
-                  description="Destination research and cultural tips"
-                  status="active"
-                  lastActivity="Available"
-                />
-                <AgentStatusCard
-                  name="Packing Agent"
-                  port="9994"
-                  description="Master packing coordinator"
-                  status="active"
-                  lastActivity="Available"
-                />
-              </div>
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.name.endsWith(".md")) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        onAddFile(file.name, content, "uploaded");
+      };
+      reader.readAsText(file);
+    }
+  };
 
-              {/* Communication Stats */}
-              <div className="bg-white rounded-lg border border-gray-200 p-4">
-                <div className="flex items-center justify-between">
-                  <div className="text-center">
-                    <div className="text-lg font-semibold text-gray-900">
-                      {state?.a2aMessages?.length || 0}
-                    </div>
-                    <div className="text-xs text-gray-500">Messages</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-semibold text-gray-900">6</div>
-                    <div className="text-xs text-gray-500">Agents</div>
-                  </div>
-                </div>
-              </div>
+  const addNewFile = () => {
+    if (newFileName.trim()) {
+      const fileName = newFileName.endsWith(".md")
+        ? newFileName
+        : `${newFileName}.md`;
+      onAddFile(
+        fileName,
+        `# ${newFileName}\n\nAdd your content here...`,
+        "manual"
+      );
+      setNewFileName("");
+      setShowAddForm(false);
+    }
+  };
 
-              {/* Example Queries */}
-              <div className="bg-white rounded-lg border border-gray-200 p-4">
-                <h3 className="font-medium text-gray-900 mb-3 text-sm">
-                  Try These Queries
-                </h3>
-                <div className="space-y-1.5">
-                  <div className="p-2 bg-gray-50 rounded text-xs text-gray-600">
-                    "I am traveling to Tokyo for 7 days..."
-                  </div>
-                  <div className="p-2 bg-gray-50 rounded text-xs text-gray-600">
-                    "What clothes for Thailand in summer?"
-                  </div>
-                  <div className="p-2 bg-gray-50 rounded text-xs text-gray-600">
-                    "Documents needed for European travel?"
-                  </div>
-                  <div className="p-2 bg-gray-50 rounded text-xs text-gray-600">
-                    "Electronics for business trip to London"
-                  </div>
-                </div>
-              </div>
+  const contextFileTypes = [
+    { name: "trip-overview.md", icon: "🌍", color: "blue" },
+    { name: "traveler-preferences.md", icon: "👤", color: "green" },
+    { name: "destination-info.md", icon: "📍", color: "purple" },
+    { name: "budget-constraints.md", icon: "💰", color: "orange" },
+    { name: "travel-documents.md", icon: "📄", color: "pink" },
+    { name: "emergency-contacts.md", icon: "🚨", color: "yellow" },
+  ];
+
+  return (
+    <div className="h-full flex flex-col p-4 bg-gray-50">
+      <div className="mb-4">
+        <h2 className="text-sm font-semibold text-gray-800 mb-1">
+          CONTEXT ENGINEERING
+        </h2>
+        <p className="text-xs text-gray-600">
+          Load your personal travel context
+        </p>
+      </div>
+
+      <div className="mb-4">
+        <h3 className="text-xs font-medium text-gray-700 mb-2 uppercase tracking-wide">
+          CONTEXT FILES
+        </h3>
+
+        {!showAddForm ? (
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="w-full mb-3 p-3 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors"
+          >
+            + New Context
+          </button>
+        ) : (
+          <div className="mb-3 p-3 bg-white rounded-lg border">
+            <input
+              type="text"
+              value={newFileName}
+              onChange={(e) => setNewFileName(e.target.value)}
+              placeholder="File name (e.g., trip-overview)"
+              className="w-full px-2 py-1 border rounded text-sm mb-2"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={addNewFile}
+                className="px-3 py-1 bg-blue-500 text-white rounded text-xs"
+              >
+                Add
+              </button>
+              <button
+                onClick={() => setShowAddForm(false)}
+                className="px-3 py-1 bg-gray-300 text-gray-700 rounded text-xs"
+              >
+                Cancel
+              </button>
             </div>
           </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
+        )}
+
+        <input
+          type="file"
+          accept=".md"
+          onChange={handleFileUpload}
+          className="hidden"
+          id="file-upload"
+        />
+        <label
+          htmlFor="file-upload"
+          className="block w-full mb-3 p-2 border-2 border-dashed border-gray-300 rounded-lg text-center text-xs text-gray-500 hover:border-gray-400 cursor-pointer"
+        >
+          Or upload .md file
+        </label>
+      </div>
+
+      <div className="flex-1 overflow-y-auto space-y-2">
+        {contextFiles.map((file, index) => {
+          const fileType = contextFileTypes.find(
+            (type) => file.name === type.name
+          );
+          const icon = fileType?.icon || "📝";
+          const colorClass =
+            fileType?.color === "blue"
+              ? "bg-blue-100 border-blue-200"
+              : fileType?.color === "green"
+              ? "bg-green-100 border-green-200"
+              : fileType?.color === "purple"
+              ? "bg-purple-100 border-purple-200"
+              : fileType?.color === "orange"
+              ? "bg-orange-100 border-orange-200"
+              : fileType?.color === "pink"
+              ? "bg-pink-100 border-pink-200"
+              : fileType?.color === "yellow"
+              ? "bg-yellow-100 border-yellow-200"
+              : "bg-gray-100 border-gray-200";
+
+          return (
+            <div
+              key={index}
+              className={`p-3 rounded-lg border cursor-pointer hover:shadow-sm transition-all ${colorClass}`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">{icon}</span>
+                  <span className="text-xs font-medium text-gray-700">
+                    {file.name}
+                  </span>
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() =>
+                      setEditingIndex(editingIndex === index ? null : index)
+                    }
+                    className="text-xs text-gray-500 hover:text-gray-700"
+                  >
+                    {editingIndex === index ? "×" : "✏️"}
+                  </button>
+                  <button
+                    onClick={() => onRemoveFile(index)}
+                    className="text-xs text-red-500 hover:text-red-700"
+                  >
+                    🗑️
+                  </button>
+                </div>
+              </div>
+
+              {editingIndex === index ? (
+                <textarea
+                  value={file.content}
+                  onChange={(e) => onUpdateFile(index, e.target.value)}
+                  className="w-full h-32 text-xs p-2 border rounded resize-none"
+                  placeholder="Enter markdown content..."
+                />
+              ) : (
+                <div className="text-xs text-gray-600 line-clamp-3">
+                  {file.content.substring(0, 100)}...
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+interface PackingDashboardProps {
+  packingState: PackingState;
+  onUpdatePacking: (state: PackingState) => void;
+}
+
+const PackingDashboard: React.FC<PackingDashboardProps> = ({
+  packingState,
+  onUpdatePacking,
+}) => {
+  const sampleCategories = [
+    {
+      name: "Essentials",
+      items: ["Passport", "Phone", "Wallet"],
+      packed: 2,
+      total: 3,
+      priority: "high",
+    },
+    {
+      name: "Clothing",
+      items: ["T-Shirts", "Pants", "Underwear"],
+      packed: 3,
+      total: 4,
+      priority: "high",
+    },
+    {
+      name: "Toiletries",
+      items: ["Toothbrush", "Shampoo", "Deodorant"],
+      packed: 1,
+      total: 3,
+      priority: "medium",
+    },
+    {
+      name: "Electronics",
+      items: ["Charger", "Camera", "Headphones"],
+      packed: 2,
+      total: 3,
+      priority: "medium",
+    },
+    {
+      name: "Extras",
+      items: ["Books", "Snacks", "Games"],
+      packed: 0,
+      total: 3,
+      priority: "low",
+    },
+  ];
+
+  const totalPacked = sampleCategories.reduce(
+    (sum, cat) => sum + cat.packed,
+    0
+  );
+  const totalItems = sampleCategories.reduce((sum, cat) => sum + cat.total, 0);
+  const progressPercent =
+    totalItems > 0 ? Math.round((totalPacked / totalItems) * 100) : 0;
+
+  return (
+    <div className="h-full flex flex-col p-4">
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">
+          Travel Workspace
+        </h2>
+        <p className="text-sm text-gray-600">4/6 agents active</p>
+      </div>
+
+      <div className="mb-6">
+        <h3 className="text-sm font-medium text-gray-800 mb-3">
+          Smart Packing Assistant
+        </h3>
+        <div className="flex items-center gap-3 mb-2">
+          <span className="text-xs text-gray-600">
+            {totalPacked}/{totalItems} items packed
+          </span>
+          <div className="flex-1 bg-gray-200 rounded-full h-2">
+            <div
+              className="bg-teal-500 h-2 rounded-full transition-all duration-500"
+              style={{ width: `${progressPercent}%` }}
+            ></div>
+          </div>
+          <span className="text-xs font-medium text-gray-800">
+            {progressPercent}%
+          </span>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto space-y-4">
+        {sampleCategories.map((category, index) => (
+          <div key={index} className="bg-white rounded-lg border p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-medium text-gray-900">
+                {category.name} ({category.packed}/{category.total})
+              </h4>
+              <span
+                className={`px-2 py-1 rounded-full text-xs ${
+                  category.priority === "high"
+                    ? "bg-red-100 text-red-700"
+                    : category.priority === "medium"
+                    ? "bg-yellow-100 text-yellow-700"
+                    : "bg-gray-100 text-gray-700"
+                }`}
+              >
+                {category.priority}
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              {category.items.map((item, itemIndex) => (
+                <div
+                  key={itemIndex}
+                  className="flex items-center justify-between p-2 bg-gray-50 rounded"
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={itemIndex < category.packed}
+                      onChange={() => {
+                        // Toggle packing state
+                        console.log("Toggle", item);
+                      }}
+                      className="w-4 h-4 text-teal-600"
+                    />
+                    <span
+                      className={`text-sm ${
+                        itemIndex < category.packed
+                          ? "line-through text-gray-500"
+                          : "text-gray-900"
+                      }`}
+                    >
+                      {item}
+                    </span>
+                  </div>
+                  <span
+                    className={`text-xs px-2 py-1 rounded ${
+                      itemIndex < category.packed
+                        ? "bg-green-100 text-green-700"
+                        : "bg-gray-100 text-gray-600"
+                    }`}
+                  >
+                    {itemIndex < category.packed ? "✓" : "○"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {/* Agent Dashboard */}
+        <div className="bg-white rounded-lg border p-4">
+          <h3 className="font-medium text-gray-900 mb-3 text-sm">
+            Agent Dashboard
+          </h3>
+          <div className="grid grid-cols-2 gap-2">
+            <AgentStatusCard
+              name="Packing"
+              port="9994"
+              description="Smart packing..."
+              status="active"
+              lastActivity="Available"
+              compact={true}
+            />
+            <AgentStatusCard
+              name="Documents"
+              port="9995"
+              description="Travel docs"
+              status="active"
+              lastActivity="Available"
+              compact={true}
+            />
+            <AgentStatusCard
+              name="Research"
+              port="9996"
+              description="Destination info"
+              status="active"
+              lastActivity="Available"
+              compact={true}
+            />
+            <AgentStatusCard
+              name="Belongings"
+              port="9997"
+              description="Personal items"
+              status="active"
+              lastActivity="Available"
+              compact={true}
+            />
+          </div>
+        </div>
+
+        {/* Communication Stats */}
+        <div className="bg-white rounded-lg border p-4">
+          <div className="flex items-center justify-between">
+            <div className="text-center">
+              <div className="text-lg font-semibold text-gray-900">6</div>
+              <div className="text-xs text-gray-500">Components</div>
+            </div>
+            <div className="text-center">
+              <div className="text-lg font-semibold text-gray-900">6</div>
+              <div className="text-xs text-gray-500">Agents</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
@@ -224,6 +601,7 @@ interface AgentStatusCardProps {
   description: string;
   status: "active" | "inactive" | "busy";
   lastActivity: string;
+  compact?: boolean;
 }
 
 const AgentStatusCard: React.FC<AgentStatusCardProps> = ({
@@ -232,12 +610,29 @@ const AgentStatusCard: React.FC<AgentStatusCardProps> = ({
   description,
   status,
   lastActivity,
+  compact = false,
 }) => {
   const statusDots = {
     active: "bg-green-400",
     inactive: "bg-gray-300",
     busy: "bg-amber-400",
   };
+
+  if (compact) {
+    return (
+      <div className="p-2 bg-gray-50 rounded border">
+        <div className="flex items-center gap-2 mb-1">
+          <div
+            className={`w-1.5 h-1.5 rounded-full ${statusDots[status]} ${
+              status === "active" ? "animate-pulse" : ""
+            }`}
+          ></div>
+          <h3 className="font-medium text-xs text-gray-900">{name}</h3>
+        </div>
+        <p className="text-xs text-gray-500">{description}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-gray-300 transition-all">

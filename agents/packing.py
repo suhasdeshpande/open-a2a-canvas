@@ -36,16 +36,102 @@ except Exception as e:
 class PackingAgent:
     """Master Packing Agent that coordinates and synthesizes all packing recommendations."""
 
+    def __init__(self):
+        self.packing_state = {
+            "items": {},
+            "categories": {
+                "essentials": {"packed": 0, "total": 0, "priority": "high"},
+                "clothing": {"packed": 0, "total": 0, "priority": "high"},
+                "toiletries": {"packed": 0, "total": 0, "priority": "medium"},
+                "electronics": {"packed": 0, "total": 0, "priority": "medium"},
+                "documents": {"packed": 0, "total": 0, "priority": "high"},
+                "extras": {"packed": 0, "total": 0, "priority": "low"}
+            },
+            "progress": 0
+        }
+
     @weave_op
     async def invoke(self, message: Message) -> str:
+        user_message = message.parts[0].root.text
+
+        # Check if this is a packing state update request
+        if "update_packing_state" in user_message.lower() or "mark_packed" in user_message.lower():
+            return self._handle_packing_update(user_message)
+
+        # Generate packing recommendations
         response = openai.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are the world's best packing coordinator and travel preparation specialist. You synthesize information from clothing experts, personal belongings specialists, documentation experts, destination researchers, and search results to create the ultimate packing strategy. You provide comprehensive, organized packing lists with categories (clothing, electronics, documents, toiletries, etc.), packing tips, weight distribution advice, and strategic recommendations. Consider factors like luggage restrictions, climate variations, trip duration, activities planned, and space optimization. Create prioritized lists with 'essential', 'recommended', and 'optional' items. Provide packing order suggestions and travel day tips. Your goal is to ensure travelers are perfectly prepared without overpacking."},
-                {"role": "user", "content": message.parts[0].root.text}
+                {"role": "system", "content": """You are the world's best packing coordinator and travel preparation specialist. You synthesize information from clothing experts, personal belongings specialists, documentation experts, destination researchers, and search results to create the ultimate packing strategy.
+
+You provide comprehensive, organized packing lists with categories (clothing, electronics, documents, toiletries, etc.), packing tips, weight distribution advice, and strategic recommendations. Consider factors like luggage restrictions, climate variations, trip duration, activities planned, and space optimization.
+
+Create prioritized lists with 'essential', 'recommended', and 'optional' items. Provide packing order suggestions and travel day tips. Your goal is to ensure travelers are perfectly prepared without overpacking.
+
+When providing recommendations, structure them clearly by category:
+- **Essentials** (passport, phone, wallet, etc.)
+- **Clothing** (weather-appropriate attire)
+- **Toiletries** (personal care items)
+- **Electronics** (chargers, devices, adapters)
+- **Documents** (tickets, insurance, visas)
+- **Extras** (entertainment, comfort items)
+
+For each item, indicate the priority level (essential/recommended/optional) and quantity needed."""},
+                {"role": "user", "content": user_message}
             ]
         )
-        return response.choices[0].message.content
+
+        # Parse the response to extract items and update state
+        recommendations = response.choices[0].message.content
+        self._extract_items_from_recommendations(recommendations)
+
+        return recommendations
+
+    def _handle_packing_update(self, message: str) -> str:
+        """Handle requests to update packing state"""
+        # This would parse commands like "mark passport as packed"
+        # For now, return current state
+        total_items = sum(cat["total"] for cat in self.packing_state["categories"].values())
+        packed_items = sum(cat["packed"] for cat in self.packing_state["categories"].values())
+        progress = int((packed_items / total_items * 100)) if total_items > 0 else 0
+
+        return f"""Packing Progress Update:
+
+**Current Status:** {packed_items}/{total_items} items packed ({progress}%)
+
+**By Category:**
+- Essentials: {self.packing_state['categories']['essentials']['packed']}/{self.packing_state['categories']['essentials']['total']}
+- Clothing: {self.packing_state['categories']['clothing']['packed']}/{self.packing_state['categories']['clothing']['total']}
+- Toiletries: {self.packing_state['categories']['toiletries']['packed']}/{self.packing_state['categories']['toiletries']['total']}
+- Electronics: {self.packing_state['categories']['electronics']['packed']}/{self.packing_state['categories']['electronics']['total']}
+- Documents: {self.packing_state['categories']['documents']['packed']}/{self.packing_state['categories']['documents']['total']}
+- Extras: {self.packing_state['categories']['extras']['packed']}/{self.packing_state['categories']['extras']['total']}
+
+Ready to help you pack more efficiently!"""
+
+    def _extract_items_from_recommendations(self, recommendations: str):
+        """Extract and categorize items from recommendations text"""
+        # Simple parsing - in a real implementation this would be more sophisticated
+        lines = recommendations.lower().split('\n')
+        current_category = None
+
+        for line in lines:
+            line = line.strip()
+            if 'essential' in line:
+                current_category = 'essentials'
+            elif 'clothing' in line:
+                current_category = 'clothing'
+            elif 'toiletries' in line or 'personal care' in line:
+                current_category = 'toiletries'
+            elif 'electronics' in line or 'device' in line:
+                current_category = 'electronics'
+            elif 'document' in line:
+                current_category = 'documents'
+            elif 'extra' in line or 'entertainment' in line:
+                current_category = 'extras'
+            elif line.startswith('-') or line.startswith('*') and current_category:
+                # Found an item, increment total for category
+                self.packing_state["categories"][current_category]["total"] += 1
 
 skill = AgentSkill(
     id='packing_agent',
@@ -90,6 +176,10 @@ class PackingAgentExecutor(AgentExecutor):
         self, context: RequestContext, event_queue: EventQueue
     ) -> None:
         raise Exception('cancel not supported')
+
+    def get_packing_state(self):
+        """Get current packing state for frontend"""
+        return self.agent.packing_state
 
 
 def main():
