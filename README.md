@@ -96,8 +96,21 @@ open-a2a-canvas/
 
 ### Running the Application
 
-1. **Start the travel packing agents (in separate terminals):**
+1. **Start all travel packing agents (one command):**
 
+   **Option A: Shell script (macOS/Linux):**
+   ```bash
+   cd agents
+   ./run_all_agents.sh
+   ```
+
+   **Option B: Python script (cross-platform):**
+   ```bash
+   cd agents
+   python start_agents.py
+   ```
+
+   Or manually in separate terminals:
    ```bash
    cd agents
    # Terminal 1: Personal Belongings Agent
@@ -117,6 +130,12 @@ open-a2a-canvas/
 
    # Terminal 6: Search Agent
    uv run python search.py
+   ```
+
+   **To stop all agents:**
+   ```bash
+   cd agents
+   ./stop_all_agents.sh
    ```
 
 2. **Start the frontend:**
