@@ -11,10 +11,9 @@
   ],
   "scripts": {
     "build": "tsup",
-    "dev": "concurrently \"cd frontend && pnpm dev\" \"python agents/start_agents.py\"",
     "dev:frontend": "cd frontend && pnpm dev",
-    "dev:agents": "python agents/start_agents.py",
-    "start:agents": "python agents/start_agents.py",
+    "dev:agents": "cd agents && python start_agents.py",
+    "start:agents": "cd agents && python start_agents.py",
     "stop:agents": "bash agents/stop_all_agents.sh",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",

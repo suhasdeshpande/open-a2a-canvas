@@ -21,13 +21,22 @@ from a2a.types import (
 import openai
 import weave
 
-# Initialize Weave
-weave.init('a2a-packing-agent')
+# Initialize Weave (optional)
+try:
+    weave.init('a2a-packing-agent')
+    print("✅ Weave initialized for packing agent")
+    weave_op = weave.op
+except Exception as e:
+    print(f"⚠️  Weave initialization failed: {e}")
+    print("Agent will run without Weave tracing")
+    # Create a no-op decorator when weave is not available
+    def weave_op(func):
+        return func
 
 class PackingAgent:
     """Master Packing Agent that coordinates and synthesizes all packing recommendations."""
 
-    @weave.op
+    @weave_op
     async def invoke(self, message: Message) -> str:
         response = openai.chat.completions.create(
             model="gpt-4o",

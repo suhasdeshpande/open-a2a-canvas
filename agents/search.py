@@ -23,8 +23,17 @@ import openai
 from exa_py import Exa
 import weave
 
-# Initialize Weave
-weave.init('a2a-search-agent')
+# Initialize Weave (optional)
+try:
+    weave.init('a2a-search-agent')
+    print("✅ Weave initialized for search agent")
+    weave_op = weave.op
+except Exception as e:
+    print(f"⚠️  Weave initialization failed: {e}")
+    print("Agent will run without Weave tracing")
+    # Create a no-op decorator when weave is not available
+    def weave_op(func):
+        return func
 
 class SearchAgent:
     """Search Agent using Exa."""
@@ -35,7 +44,7 @@ class SearchAgent:
             raise ValueError("EXA_API_KEY environment variable is required")
         self.exa = Exa(api_key=exa_api_key)
 
-    @weave.op
+    @weave_op
     async def invoke(self, message: Message) -> str:
         user_query = message.parts[0].root.text
 

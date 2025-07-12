@@ -21,13 +21,22 @@ from a2a.types import (
 import openai
 import weave
 
-# Initialize Weave
-weave.init('a2a-research-agent')
+# Initialize Weave (optional)
+try:
+    weave.init('a2a-research-agent')
+    print("✅ Weave initialized for research agent")
+    weave_op = weave.op
+except Exception as e:
+    print(f"⚠️  Weave initialization failed: {e}")
+    print("Agent will run without Weave tracing")
+    # Create a no-op decorator when weave is not available
+    def weave_op(func):
+        return func
 
 class ResearchAgent:
     """Research Agent for destination and travel information."""
 
-    @weave.op
+    @weave_op
     async def invoke(self, message: Message) -> str:
         response = openai.chat.completions.create(
             model="gpt-4o",

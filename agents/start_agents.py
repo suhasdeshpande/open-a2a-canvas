@@ -62,23 +62,26 @@ def main():
 
     print("Starting agents...")
 
-    # Start all agents
+    # Start all agents in the background
     for agent in AGENTS:
         print(f"  {agent['emoji']} {agent['name']} Agent (Port {agent['port']})...")
         try:
+            # Use shell=True for simpler process management
             process = subprocess.Popen(
-                ["uv", "run", "python", agent["file"]],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
+                f"uv run python {agent['file']}",
+                shell=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                cwd=os.path.dirname(os.path.abspath(__file__))
             )
             processes.append(process)
-            time.sleep(0.5)  # Brief delay between starts
+            time.sleep(1)  # Longer delay for startup
         except Exception as e:
             print(f"❌ Failed to start {agent['name']} Agent: {e}")
             continue
 
     # Wait for startup
-    time.sleep(3)
+    time.sleep(5)
 
     print("")
     print("✅ All agents started successfully!")
@@ -92,15 +95,15 @@ def main():
     print("")
     print("Press Ctrl+C to stop all agents")
 
-    # Wait for all processes
+    # Keep the script running and monitor processes
     try:
         while True:
-            # Check if any process has died
-            for i, process in enumerate(processes):
-                if process.poll() is not None:
-                    agent = AGENTS[i]
-                    print(f"⚠️  {agent['name']} Agent stopped unexpectedly")
-            time.sleep(1)
+            time.sleep(10)  # Check every 10 seconds
+            # Optionally check if processes are still alive
+            alive_count = sum(1 for p in processes if p.poll() is None)
+            if alive_count == 0:
+                print("⚠️  All agents have stopped")
+                break
     except KeyboardInterrupt:
         signal_handler(signal.SIGINT, None)
 
