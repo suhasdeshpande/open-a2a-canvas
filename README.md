@@ -96,7 +96,21 @@ open-a2a-canvas/
 
 ### Running the Application
 
-1. **Start all travel packing agents (one command):**
+#### Quick Start (Everything in one command)
+
+Run both frontend and all agents with a single command:
+
+```bash
+pnpm dev
+```
+
+This will start:
+- Frontend Next.js app on `http://localhost:3000`
+- All 6 travel packing agents on ports 9994-9999
+
+#### Manual Start Options
+
+1. **Start all travel packing agents only:**
 
    **Option A: Shell script (macOS/Linux):**
    ```bash
@@ -108,6 +122,11 @@ open-a2a-canvas/
    ```bash
    cd agents
    python start_agents.py
+   ```
+
+   **Option C: npm script:**
+   ```bash
+   pnpm run dev:agents
    ```
 
    Or manually in separate terminals:
@@ -137,12 +156,22 @@ open-a2a-canvas/
    cd agents
    ./stop_all_agents.sh
    ```
+   
+   Or use the npm script:
+   ```bash
+   pnpm run stop:agents
+   ```
 
-2. **Start the frontend:**
+2. **Start the frontend only:**
 
    ```bash
    cd frontend
-   npm run dev
+   pnpm dev
+   ```
+   
+   Or use the root script:
+   ```bash
+   pnpm run dev:frontend
    ```
 
 3. **Open your browser:** Navigate to `http://localhost:3000`
