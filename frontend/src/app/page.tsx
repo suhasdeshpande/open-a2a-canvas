@@ -1,6 +1,9 @@
 "use client";
-import React, { useEffect, useState } from "react";
-import "@copilotkit/react-ui/styles.css";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import {
   CopilotKit,
   useCoAgent,
@@ -8,11 +11,8 @@ import {
   useCopilotChat,
 } from "@copilotkit/react-core";
 import { CopilotChat } from "@copilotkit/react-ui";
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@/components/ui/resizable";
+import "@copilotkit/react-ui/styles.css";
+import React, { useState } from "react";
 
 export default function Home() {
   return (
@@ -38,11 +38,7 @@ interface A2AState {
 }
 
 const AgentCanvas = () => {
-  const [background, setBackground] = useState<string>(
-    "--copilot-kit-background-color"
-  );
   const { state } = useCoAgent<A2AState>({ name: "theDirtyDogs" });
-  const { isLoading, visibleMessages } = useCopilotChat();
 
   // Render agent communication state
   useCoAgentStateRender<A2AState>({
@@ -99,18 +95,20 @@ const AgentCanvas = () => {
         {/* Left panel - Chat */}
         <ResizablePanel defaultSize={50} minSize={30} maxSize={70}>
           <div className="relative h-full flex flex-col">
-            <div className="flex-1 p-4">
-              <CopilotChat
-                instructions={
-                  "You are the ultimate travel packing coordinator working with specialized travel agents. Help users pack perfectly for any trip by coordinating with expert agents for clothing, personal belongings, documents, research, and packing strategy."
-                }
-                labels={{
-                  title: "🧳 Travel Packing Assistant",
-                  initial:
-                    "Hi! I'm your travel packing coordinator. I work with expert agents to help you pack perfectly for any trip!\n\n🌍 Try saying:\n\"I am traveling to Tokyo for 7 days. I need to pack for the trip.\"\n\n✈️ Or ask about:\n• Clothing for specific destinations\n• Required travel documents\n• Personal items and electronics\n• Destination research and tips\n\nI'll coordinate with my specialist agents to give you comprehensive packing advice!",
-                }}
-                className="h-full rounded-lg shadow-lg"
-              />
+            <div className="flex-1 p-4 overflow-hidden">
+              <div className="h-full flex flex-col">
+                <CopilotChat
+                  instructions={
+                    "You are the ultimate travel packing coordinator working with specialized travel agents. Help users pack perfectly for any trip by coordinating with expert agents for clothing, personal belongings, documents, research, and packing strategy."
+                  }
+                  labels={{
+                    title: "🧳 Travel Packing Assistant",
+                    initial:
+                      "Hi! I'm your travel packing coordinator. I work with expert agents to help you pack perfectly for any trip!\n\n🌍 Try saying:\n\"I am traveling to Tokyo for 7 days. I need to pack for the trip.\"\n\n✈️ Or ask about:\n• Clothing for specific destinations\n• Required travel documents\n• Personal items and electronics\n• Destination research and tips\n\nI'll coordinate with my specialist agents to give you comprehensive packing advice!",
+                  }}
+                  className="h-full rounded-lg shadow-lg [&_.copilotKitMessages]:overflow-y-auto [&_.copilotKitMessages]:max-h-full [&_.copilotKitMessagesContainer]:flex [&_.copilotKitMessagesContainer]:flex-col [&_.copilotKitMessagesContainer]:h-full"
+                />
+              </div>
             </div>
           </div>
         </ResizablePanel>

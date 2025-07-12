@@ -149,3 +149,57 @@
   bottom: 0 !important;
   z-index: 10 !important;
 }
+
+/* CopilotKit Chat Scrolling Fix */
+.copilotKitChat {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+.copilotKitMessages {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  min-height: 0 !important;
+}
+
+.copilotKitMessagesContainer {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+
+/* Ensure input stays at bottom */
+.copilotKitChat > div:last-child,
+.copilotKitChat [class*="input"],
+.copilotKitChat [class*="Input"] {
+  flex-shrink: 0 !important;
+  margin-top: auto !important;
+}
+
+/* Smooth scrolling */
+.copilotKitMessages {
+  scroll-behavior: smooth !important;
+}
+
+/* Custom scrollbar for better UX */
+.copilotKitMessages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.copilotKitMessages::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.copilotKitMessages::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.copilotKitMessages::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
