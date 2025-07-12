@@ -411,6 +411,13 @@ const PackingDashboard: React.FC<PackingDashboardProps> = ({
 }) => {
   const { state, setState } = useCoAgent<A2AState>({ name: "theDirtyDogs" });
 
+  // Also connect to the packing agent specifically for state updates
+  const { state: packingAgentState } = useCoAgent<{
+    packingState: PackingState;
+  }>({
+    name: "PackingAgent",
+  });
+
   // Initialize with sample items that match PackingItem interface
   const defaultItems: PackingItem[] = [
     {
@@ -528,15 +535,17 @@ const PackingDashboard: React.FC<PackingDashboardProps> = ({
     extras: { packed: 0, total: 3, priority: "low" },
   };
 
-  const currentPackingState = state?.packingState || {
-    items: defaultItems,
-    categories: defaultCategories,
-    totalPacked: 0,
-    totalItems: defaultItems.length,
-    progress: 0,
-  };
+  // Use packing agent state if available, fallback to main state, then default
+  const currentPackingState = packingAgentState?.packingState ||
+    state?.packingState || {
+      items: defaultItems,
+      categories: defaultCategories,
+      totalPacked: 0,
+      totalItems: defaultItems.length,
+      progress: 0,
+    };
 
-  const toggleItem = (itemId: string) => {
+  const toggleItem = async (itemId: string) => {
     const updatedItems = currentPackingState.items.map((item) =>
       item.id === itemId ? { ...item, packed: !item.packed } : item
     );
@@ -574,10 +583,27 @@ const PackingDashboard: React.FC<PackingDashboardProps> = ({
       progress,
     };
 
+    // Update main agent state
     setState({
       ...state,
       packingState: newPackingState,
     });
+
+    // Send update message to packing agent
+    try {
+      const toggledItem = updatedItems.find((item) => item.id === itemId);
+      if (toggledItem) {
+        const message = `update_packing_state: ${
+          toggledItem.packed ? "packed" : "unpacked"
+        } ${toggledItem.name}`;
+
+        // This would typically be sent through the A2A system to the packing agent
+        // The packing agent should handle this message and update its internal state
+        console.log("Sending to packing agent:", message);
+      }
+    } catch (error) {
+      console.error("Failed to update packing agent:", error);
+    }
   };
 
   const categoryOrder = [

@@ -40,12 +40,12 @@ class PackingAgent:
         self.packing_state = {
             "items": {},
             "categories": {
-                "essentials": {"packed": 0, "total": 0, "priority": "high"},
-                "clothing": {"packed": 0, "total": 0, "priority": "high"},
-                "toiletries": {"packed": 0, "total": 0, "priority": "medium"},
-                "electronics": {"packed": 0, "total": 0, "priority": "medium"},
+                "essentials": {"packed": 0, "total": 3, "priority": "high"},
+                "clothing": {"packed": 0, "total": 3, "priority": "high"},
+                "toiletries": {"packed": 0, "total": 3, "priority": "medium"},
+                "electronics": {"packed": 0, "total": 3, "priority": "medium"},
                 "documents": {"packed": 0, "total": 0, "priority": "high"},
-                "extras": {"packed": 0, "total": 0, "priority": "low"}
+                "extras": {"packed": 0, "total": 3, "priority": "low"}
             },
             "progress": 0
         }
@@ -89,8 +89,17 @@ For each item, indicate the priority level (essential/recommended/optional) and 
 
     def _handle_packing_update(self, message: str) -> str:
         """Handle requests to update packing state"""
-        # This would parse commands like "mark passport as packed"
-        # For now, return current state
+        # Parse update commands like "update_packing_state: packed Passport"
+        if "packed" in message.lower() or "unpacked" in message.lower():
+            parts = message.split()
+            if len(parts) >= 3:
+                action = parts[1]  # "packed" or "unpacked"
+                item_name = " ".join(parts[2:])  # rest is item name
+
+                # Find and update the item in our state
+                self._update_item_status(item_name, action == "packed")
+
+        # Return current state
         total_items = sum(cat["total"] for cat in self.packing_state["categories"].values())
         packed_items = sum(cat["packed"] for cat in self.packing_state["categories"].values())
         progress = int((packed_items / total_items * 100)) if total_items > 0 else 0
@@ -108,6 +117,43 @@ For each item, indicate the priority level (essential/recommended/optional) and 
 - Extras: {self.packing_state['categories']['extras']['packed']}/{self.packing_state['categories']['extras']['total']}
 
 Ready to help you pack more efficiently!"""
+
+    def _update_item_status(self, item_name: str, packed: bool):
+        """Update the packed status of an item"""
+        # Find which category this item belongs to and update counts
+        item_name_lower = item_name.lower()
+
+        # Map items to categories (simplified)
+        item_category_map = {
+            'passport': 'essentials',
+            'phone': 'essentials',
+            'wallet': 'essentials',
+            't-shirts': 'clothing',
+            'pants': 'clothing',
+            'underwear': 'clothing',
+            'toothbrush': 'toiletries',
+            'shampoo': 'toiletries',
+            'deodorant': 'toiletries',
+            'charger': 'electronics',
+            'camera': 'electronics',
+            'headphones': 'electronics',
+            'books': 'extras',
+            'snacks': 'extras',
+            'games': 'extras'
+        }
+
+        category = item_category_map.get(item_name_lower)
+        if category and category in self.packing_state["categories"]:
+            if packed:
+                self.packing_state["categories"][category]["packed"] = min(
+                    self.packing_state["categories"][category]["packed"] + 1,
+                    self.packing_state["categories"][category]["total"]
+                )
+            else:
+                self.packing_state["categories"][category]["packed"] = max(
+                    self.packing_state["categories"][category]["packed"] - 1,
+                    0
+                )
 
     def _extract_items_from_recommendations(self, recommendations: str):
         """Extract and categorize items from recommendations text"""
