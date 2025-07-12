@@ -25,11 +25,10 @@ a2a/
 │   ├── finance.py
 │   ├── it.py
 │   └── main.py
-├── frontend/             # Next.js frontend with Copilotkit integration
-│   └── src/
-│       ├── app/
-│       └── components/
-└── ui/                   # Shared UI components
+└── frontend/             # Next.js frontend with Copilotkit integration
+    └── src/
+        ├── app/
+        └── components/
 ```
 
 ## 🚀 Getting Started
