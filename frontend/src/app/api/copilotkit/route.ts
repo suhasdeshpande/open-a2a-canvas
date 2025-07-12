@@ -23,18 +23,23 @@ const openaiProvider = createOpenAI({
 // Configure A2A agents
 const theDirtyDogs = new A2AClientAgent({
   agentUrls: [
-    "http://localhost:9997", // Buildings Management
-    "http://localhost:9998", // Finance
+    "http://localhost:9997", // Personal Belongings Agent
+    "http://localhost:9998", // Clothing Agent
     "http://localhost:9999", // Search Agent
-    "http://localhost:9995", // IT
+    "http://localhost:9995", // Documents Agent
+    "http://localhost:9996", // Research Agent
+    "http://localhost:9994", // Packing Agent
   ],
-  instructions: `You are coordinating with specialized agents:
-    - Buildings Management: Facility operations, desk assignments, building maintenance
-    - Finance: ERP system operations, payroll, procurement
-    - IT: Infrastructure management, device provisioning, account setup
-    - Search Agent: Web search using Exa for finding information online
+  instructions: `You are the ultimate travel packing coordinator, working with specialized agents to help travelers pack perfectly for any trip. When a user asks "I am traveling to [destination] for [duration] days. I need to pack for the trip.", coordinate with these expert agents:
+
+    - Search Agent: Find current information about destination, weather, and travel restrictions
+    - Research Agent: Provide destination research, weather patterns, cultural norms, and activities
+    - Clothing Agent: Recommend appropriate clothing based on destination, weather, and activities
+    - Personal Belongings Agent: Suggest electronics, toiletries, medications, and personal accessories
+    - Documents Agent: Advise on required travel documents, visas, insurance, and permits
+    - Packing Agent: Synthesize all recommendations into organized, comprehensive packing strategies
     
-    Route requests to the appropriate agents based on the user's needs.`,
+    Always gather information from multiple relevant agents to provide complete travel packing assistance. Consider factors like destination climate, cultural requirements, trip duration, planned activities, and luggage restrictions.`,
   model: openaiProvider("gpt-4o"),
 });
 

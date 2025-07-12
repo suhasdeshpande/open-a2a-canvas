@@ -22,51 +22,52 @@ import openai
 import weave
 
 # Initialize Weave
-weave.init('a2a-buildings-management-agent')
+weave.init('a2a-personal-belongings-agent')
 
-class BuildingsManagementAgent:
-    """Buildings Management Agent."""
+class PersonalBelongingsAgent:
+    """Personal Belongings Agent for travel packing recommendations."""
 
     @weave.op
     async def invoke(self, message: Message) -> str:
         response = openai.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "developer", "content": "You are simulating an agent in the Buildings Management department of a company, as part of a demo. You simulate being in charge of the buildings management, and given request you will respond pretending to operate that system. But you will always simulate successfully carrying out the request. Never say the steps that need to be done to fulfill a request: REMEMBER: you are SIMULATING to be in charge of the system and you pretend to do any task yourself. That's what the demo is about ;) When asked to find available desks for an engineer, there are three desks available: A, B and C. Table A Seat 2 is taken by Alice Williams. Seat 1 is available. Table B Seat 1 is taken by Bob Smith. Seat 2 is also taken by Greg Brown. Table C Seat 1 is taken by Susanne Torelli. Seat 2 is available. If asked to find a table for an employee without a concrete seat, reply by giving the current tables, all people sitting at the tables and ask to pick a seat."},
+                {"role": "system", "content": "You are a personal belongings and electronics specialist for travel packing. You help travelers pack essential personal items including electronics (laptop, phone, chargers, adapters), toiletries, medications, accessories, and other personal necessities. Consider factors like destination power outlets, travel duration, airline restrictions, security requirements, and local availability of items. Provide specific recommendations with quantities and important reminders (e.g., 'universal power adapter for European outlets', 'prescription medications in original containers'). Focus on practical essentials and convenience items that make travel smoother."},
                 {"role": "user", "content": message.parts[0].root.text}
             ]
         )
         return response.choices[0].message.content
 
 skill = AgentSkill(
-    id='buildings_management_agent',
-    name='The Buildings Management Agent is in charge of the buildings management',
-    description='The Buildings Management Agent is in charge of the buildings management',
-    tags=['buildings', 'management'],
+    id='personal_belongings_agent',
+    name='Personal Belongings Specialist',
+    description='Recommends personal items, electronics, toiletries, and accessories for travel',
+    tags=['personal', 'electronics', 'toiletries', 'accessories', 'travel'],
     examples=[
-        "I want to find available desks in the office",
-        "I want to book a meeting room for tomorrow"
+        'What electronics should I pack for a business trip to Japan?',
+        'Personal items checklist for a 10-day European vacation',
+        'Toiletries and medications for international travel'
     ],
 )
 
 public_agent_card = AgentCard(
-    name='Buildings Management Agent',
-    description='The Buildings Management Agent is in charge of the buildings management',
+    name='Personal Belongings Agent',
+    description='Specialist in personal items, electronics, toiletries, and travel accessories to ensure you have everything you need',
     url='http://localhost:9997/',
     version='1.0.0',
     defaultInputModes=['text'],
     defaultOutputModes=['text'],
     capabilities=AgentCapabilities(streaming=True),
-    skills=[skill],  # Only the basic skill for the public card
+    skills=[skill],
     supportsAuthenticatedExtendedCard=True,
 )
 
 
-class BuildingsManagementAgentExecutor(AgentExecutor):
-    """Buildings Management Agent Implementation."""
+class PersonalBelongingsAgentExecutor(AgentExecutor):
+    """Personal Belongings Agent Implementation."""
 
     def __init__(self):
-        self.agent = BuildingsManagementAgent()
+        self.agent = PersonalBelongingsAgent()
 
     async def execute(
         self,
@@ -84,7 +85,7 @@ class BuildingsManagementAgentExecutor(AgentExecutor):
 
 def main():
     request_handler = DefaultRequestHandler(
-        agent_executor=BuildingsManagementAgentExecutor(),
+        agent_executor=PersonalBelongingsAgentExecutor(),
         task_store=InMemoryTaskStore(),
     )
 

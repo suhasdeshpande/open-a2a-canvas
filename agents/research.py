@@ -22,51 +22,52 @@ import openai
 import weave
 
 # Initialize Weave
-weave.init('a2a-finance-agent')
+weave.init('a2a-research-agent')
 
-class FinanceAgent:
-    """Finance Agent."""
+class ResearchAgent:
+    """Research Agent for destination and travel information."""
 
     @weave.op
     async def invoke(self, message: Message) -> str:
         response = openai.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "developer", "content": "You are simulating an agent in the finance department of a company, as part of a demo. You simulate being in charge of an ERP system, and given request you will respond pretending to operate that system. But you will always simulate successfully carrying out the request. Never say the steps that need to be done to fulfill a request: REMEMBER: you are SIMULATING to be in charge of the system and you pretend to do any task yourself. That's what the demo is about ;)"},
+                {"role": "system", "content": "You are a comprehensive travel research specialist who provides detailed information about destinations worldwide. You help travelers understand their destination's weather patterns, cultural norms, local customs, seasonal considerations, popular activities, safety information, transportation options, currency, language, and practical travel tips. Consider factors like the time of year, local holidays, cultural sensitivity, and regional variations. Provide actionable insights that help travelers prepare for their specific destination and travel dates. Focus on practical information that impacts packing and travel preparation decisions."},
                 {"role": "user", "content": message.parts[0].root.text}
             ]
         )
         return response.choices[0].message.content
 
 skill = AgentSkill(
-    id='finance_agent',
-    name='The Finance Agent is in charge of the ERP system',
-    description='The Finance Agent is in charge of the ERP system',
-    tags=['finance', 'erp'],
+    id='research_agent',
+    name='Destination Research Specialist',
+    description='Provides comprehensive destination research including weather, culture, activities, and travel tips',
+    tags=['research', 'destination', 'weather', 'culture', 'activities'],
     examples=[
-        'Set up payroll for a new employee',
-        'I want to purchase a new laptop for the office'
+        'Research Tokyo weather and cultural norms for December travel',
+        'What should I know about traveling to Morocco in summer?',
+        'Cultural considerations and activities for a trip to Iceland'
     ],
 )
 
 public_agent_card = AgentCard(
-    name='Finance Agent',
-    description='The Finance Agent is in charge of the ERP system',
-    url='http://localhost:9998/',
+    name='Research Agent',
+    description='Expert destination researcher providing weather, cultural insights, activities, and practical travel information',
+    url='http://localhost:9996/',
     version='1.0.0',
     defaultInputModes=['text'],
     defaultOutputModes=['text'],
     capabilities=AgentCapabilities(streaming=True),
-    skills=[skill],  # Only the basic skill for the public card
+    skills=[skill],
     supportsAuthenticatedExtendedCard=True,
 )
 
 
-class FinanceAgentExecutor(AgentExecutor):
-    """Finance Agent Implementation."""
+class ResearchAgentExecutor(AgentExecutor):
+    """Research Agent Implementation."""
 
     def __init__(self):
-        self.agent = FinanceAgent()
+        self.agent = ResearchAgent()
 
     async def execute(
         self,
@@ -84,7 +85,7 @@ class FinanceAgentExecutor(AgentExecutor):
 
 def main():
     request_handler = DefaultRequestHandler(
-        agent_executor=FinanceAgentExecutor(),
+        agent_executor=ResearchAgentExecutor(),
         task_store=InMemoryTaskStore(),
     )
 
@@ -94,7 +95,7 @@ def main():
         extended_agent_card=public_agent_card,
     )
 
-    uvicorn.run(server.build(), host='0.0.0.0', port=9998)
+    uvicorn.run(server.build(), host='0.0.0.0', port=9996)
 
 if __name__ == '__main__':
     main()

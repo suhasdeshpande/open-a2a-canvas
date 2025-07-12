@@ -22,51 +22,52 @@ import openai
 import weave
 
 # Initialize Weave
-weave.init('a2a-it-agent')
+weave.init('a2a-clothing-agent')
 
-class ITAgent:
-    """IT Agent."""
+class ClothingAgent:
+    """Clothing Agent for travel packing recommendations."""
 
     @weave.op
     async def invoke(self, message: Message) -> str:
         response = openai.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "developer", "content": "You are simulating an agent in the IT department of a company, as part of a demo. You simulate being in charge of the IT infrastructure, and given request you will respond pretending to operate that system. But you will always simulate successfully carrying out the request. Never say the steps that need to be done to fulfill a request: REMEMBER: you are SIMULATING to be in charge of the system and you pretend to do any task yourself. If you set up a new account, let the user know the name @acme.com. That's what the demo is about ;)"},
+                {"role": "system", "content": "You are a professional clothing and fashion consultant specializing in travel packing. You help travelers choose the right clothing for their destination, weather conditions, duration, and activities. Consider factors like climate, local dress codes, activities planned, laundry availability, and packing space. Provide specific clothing recommendations with quantities (e.g., '3 t-shirts, 2 pairs of jeans'). Consider versatile pieces that can be mixed and matched. Always consider the destination's weather, cultural norms, and the traveler's planned activities."},
                 {"role": "user", "content": message.parts[0].root.text}
             ]
         )
         return response.choices[0].message.content
 
 skill = AgentSkill(
-    id='it_agent',
-    name='The IT Agent is in charge of the IT infrastructure',
-    description='The IT Agent is in charge of the IT infrastructure',
-    tags=['it', 'infrastructure'],
+    id='clothing_agent',
+    name='Travel Clothing Consultant',
+    description='Provides clothing recommendations for travel based on destination, weather, and activities',
+    tags=['clothing', 'fashion', 'travel', 'packing'],
     examples=[
-        'I want to purchase a new laptop for the office',
-        'I want to set up a new email account for a new employee'
+        'What clothes should I pack for 5 days in Tokyo in winter?',
+        'Clothing recommendations for a beach vacation in Thailand',
+        'Business attire for a work trip to London'
     ],
 )
 
 public_agent_card = AgentCard(
-    name='IT Agent',
-    description='The IT Agent is in charge of the IT infrastructure. Set up new accounts, provision new devices, etc.',
-    url='http://localhost:9995/',
+    name='Clothing Agent',
+    description='Expert travel clothing consultant that recommends appropriate attire based on destination, weather, duration, and planned activities',
+    url='http://localhost:9998/',
     version='1.0.0',
     defaultInputModes=['text'],
     defaultOutputModes=['text'],
     capabilities=AgentCapabilities(streaming=True),
-    skills=[skill],  # Only the basic skill for the public card
+    skills=[skill],
     supportsAuthenticatedExtendedCard=True,
 )
 
 
-class ITAgentExecutor(AgentExecutor):
-    """IT Agent Implementation."""
+class ClothingAgentExecutor(AgentExecutor):
+    """Clothing Agent Implementation."""
 
     def __init__(self):
-        self.agent = ITAgent()
+        self.agent = ClothingAgent()
 
     async def execute(
         self,
@@ -84,7 +85,7 @@ class ITAgentExecutor(AgentExecutor):
 
 def main():
     request_handler = DefaultRequestHandler(
-        agent_executor=ITAgentExecutor(),
+        agent_executor=ClothingAgentExecutor(),
         task_store=InMemoryTaskStore(),
     )
 
@@ -94,7 +95,7 @@ def main():
         extended_agent_card=public_agent_card,
     )
 
-    uvicorn.run(server.build(), host='0.0.0.0', port=9995)
+    uvicorn.run(server.build(), host='0.0.0.0', port=9998)
 
 if __name__ == '__main__':
     main()

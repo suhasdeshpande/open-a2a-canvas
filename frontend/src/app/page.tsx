@@ -112,12 +112,12 @@ const AgentCanvas = () => {
             <div className="flex-1 p-4">
               <CopilotChat
                 instructions={
-                  "You are coordinating with specialized agents including Buildings Management, Finance, IT, and Search agents. Route requests to the appropriate agents and show their communication."
+                  "You are the ultimate travel packing coordinator working with specialized travel agents. Help users pack perfectly for any trip by coordinating with expert agents for clothing, personal belongings, documents, research, and packing strategy."
                 }
                 labels={{
-                  title: "🤖 Agent Coordinator",
+                  title: "🧳 Travel Packing Assistant",
                   initial:
-                    "Hi! I coordinate with specialized agents. Try asking me to:\n\n• Find available desks\n• Set up payroll for a new employee\n• Search for information online\n• Provision new IT equipment\n\nI'll show you how the agents communicate!",
+                    "Hi! I'm your travel packing coordinator. I work with expert agents to help you pack perfectly for any trip!\n\n🌍 Try saying:\n\"I am traveling to Tokyo for 7 days. I need to pack for the trip.\"\n\n✈️ Or ask about:\n• Clothing for specific destinations\n• Required travel documents\n• Personal items and electronics\n• Destination research and tips\n\nI'll coordinate with my specialist agents to give you comprehensive packing advice!",
                 }}
                 className="h-full rounded-lg shadow-lg"
               />
@@ -132,10 +132,11 @@ const AgentCanvas = () => {
           <div className="flex flex-col h-full p-4">
             <div className="mb-4">
               <h2 className="text-xl font-bold text-gray-800 mb-2">
-                Agent Status Dashboard
+                Travel Packing Agents
               </h2>
               <p className="text-gray-600 text-sm">
-                Monitor real-time communication between specialized agents
+                Monitor real-time communication between travel packing
+                specialists
               </p>
             </div>
 
@@ -143,16 +144,16 @@ const AgentCanvas = () => {
               {/* Agent Status Cards */}
               <div className="grid grid-cols-1 gap-4">
                 <AgentStatusCard
-                  name="Buildings Management"
+                  name="Personal Belongings"
                   port="9997"
-                  description="Facility operations, desk assignments"
+                  description="Electronics, toiletries, accessories"
                   status="active"
                   lastActivity="Available"
                 />
                 <AgentStatusCard
-                  name="Finance Agent"
+                  name="Clothing Agent"
                   port="9998"
-                  description="ERP system, payroll, procurement"
+                  description="Weather-appropriate clothing recommendations"
                   status="active"
                   lastActivity="Available"
                 />
@@ -164,9 +165,23 @@ const AgentCanvas = () => {
                   lastActivity="Available"
                 />
                 <AgentStatusCard
-                  name="IT Agent"
+                  name="Documents Agent"
                   port="9995"
-                  description="Infrastructure, device provisioning"
+                  description="Visas, passports, travel insurance"
+                  status="active"
+                  lastActivity="Available"
+                />
+                <AgentStatusCard
+                  name="Research Agent"
+                  port="9996"
+                  description="Destination research and cultural tips"
+                  status="active"
+                  lastActivity="Available"
+                />
+                <AgentStatusCard
+                  name="Packing Agent"
+                  port="9994"
+                  description="Master packing coordinator"
                   status="active"
                   lastActivity="Available"
                 />
@@ -185,7 +200,7 @@ const AgentCanvas = () => {
                     <div className="text-sm text-gray-600">Messages</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">4</div>
+                    <div className="text-2xl font-bold text-green-600">6</div>
                     <div className="text-sm text-gray-600">Active Agents</div>
                   </div>
                 </div>
@@ -194,20 +209,22 @@ const AgentCanvas = () => {
               {/* Example Queries */}
               <div className="bg-white rounded-lg shadow p-4 border border-gray-200">
                 <h3 className="font-semibold text-gray-800 mb-3">
-                  Try These Queries
+                  Try These Travel Queries
                 </h3>
                 <div className="space-y-2">
                   <div className="p-2 bg-gray-50 rounded text-sm">
-                    "Find me an available desk"
+                    "I am traveling to Tokyo for 7 days. I need to pack for the
+                    trip."
                   </div>
                   <div className="p-2 bg-gray-50 rounded text-sm">
-                    "Set up payroll for John Doe"
+                    "What clothes should I pack for Thailand in summer?"
                   </div>
                   <div className="p-2 bg-gray-50 rounded text-sm">
-                    "Search for best coffee shops in SF"
+                    "What documents do I need for European travel?"
                   </div>
                   <div className="p-2 bg-gray-50 rounded text-sm">
-                    "Provision a new laptop"
+                    "Electronics and personal items for a business trip to
+                    London"
                   </div>
                 </div>
               </div>
