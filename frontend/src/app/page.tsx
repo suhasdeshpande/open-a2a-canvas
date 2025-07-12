@@ -35,6 +35,7 @@ interface A2AMessage {
 
 interface A2AState {
   a2aMessages: A2AMessage[];
+  packingState?: PackingState;
 }
 
 interface ContextFile {
@@ -44,6 +45,7 @@ interface ContextFile {
 }
 
 interface PackingItem {
+  id: string;
   name: string;
   category: string;
   priority: "essential" | "recommended" | "optional";
@@ -52,8 +54,13 @@ interface PackingItem {
 
 interface PackingState {
   items: PackingItem[];
-  categories: Record<string, { packed: number; total: number }>;
+  categories: Record<
+    string,
+    { packed: number; total: number; priority: string }
+  >;
   progress: number;
+  totalPacked: number;
+  totalItems: number;
 }
 
 const AgentCanvas = () => {
@@ -70,6 +77,8 @@ const AgentCanvas = () => {
     items: [],
     categories: {},
     progress: 0,
+    totalPacked: 0,
+    totalItems: 0,
   });
 
   // Combine all context files into instructions
@@ -400,51 +409,191 @@ const PackingDashboard: React.FC<PackingDashboardProps> = ({
   packingState,
   onUpdatePacking,
 }) => {
-  const sampleCategories = [
+  const { state, setState } = useCoAgent<A2AState>({ name: "theDirtyDogs" });
+
+  // Initialize with sample items that match PackingItem interface
+  const defaultItems: PackingItem[] = [
     {
-      name: "Essentials",
-      items: ["Passport", "Phone", "Wallet"],
-      packed: 2,
-      total: 3,
-      priority: "high",
+      id: "passport",
+      name: "Passport",
+      category: "essentials",
+      priority: "essential",
+      packed: false,
     },
     {
-      name: "Clothing",
-      items: ["T-Shirts", "Pants", "Underwear"],
-      packed: 3,
-      total: 4,
-      priority: "high",
+      id: "phone",
+      name: "Phone",
+      category: "essentials",
+      priority: "essential",
+      packed: false,
     },
     {
-      name: "Toiletries",
-      items: ["Toothbrush", "Shampoo", "Deodorant"],
-      packed: 1,
-      total: 3,
-      priority: "medium",
+      id: "wallet",
+      name: "Wallet",
+      category: "essentials",
+      priority: "essential",
+      packed: false,
     },
     {
-      name: "Electronics",
-      items: ["Charger", "Camera", "Headphones"],
-      packed: 2,
-      total: 3,
-      priority: "medium",
+      id: "tshirts",
+      name: "T-Shirts",
+      category: "clothing",
+      priority: "essential",
+      packed: false,
     },
     {
-      name: "Extras",
-      items: ["Books", "Snacks", "Games"],
-      packed: 0,
-      total: 3,
-      priority: "low",
+      id: "pants",
+      name: "Pants",
+      category: "clothing",
+      priority: "essential",
+      packed: false,
+    },
+    {
+      id: "underwear",
+      name: "Underwear",
+      category: "clothing",
+      priority: "essential",
+      packed: false,
+    },
+    {
+      id: "toothbrush",
+      name: "Toothbrush",
+      category: "toiletries",
+      priority: "recommended",
+      packed: false,
+    },
+    {
+      id: "shampoo",
+      name: "Shampoo",
+      category: "toiletries",
+      priority: "recommended",
+      packed: false,
+    },
+    {
+      id: "deodorant",
+      name: "Deodorant",
+      category: "toiletries",
+      priority: "recommended",
+      packed: false,
+    },
+    {
+      id: "charger",
+      name: "Charger",
+      category: "electronics",
+      priority: "essential",
+      packed: false,
+    },
+    {
+      id: "camera",
+      name: "Camera",
+      category: "electronics",
+      priority: "recommended",
+      packed: false,
+    },
+    {
+      id: "headphones",
+      name: "Headphones",
+      category: "electronics",
+      priority: "optional",
+      packed: false,
+    },
+    {
+      id: "books",
+      name: "Books",
+      category: "extras",
+      priority: "optional",
+      packed: false,
+    },
+    {
+      id: "snacks",
+      name: "Snacks",
+      category: "extras",
+      priority: "optional",
+      packed: false,
+    },
+    {
+      id: "games",
+      name: "Games",
+      category: "extras",
+      priority: "optional",
+      packed: false,
     },
   ];
 
-  const totalPacked = sampleCategories.reduce(
-    (sum, cat) => sum + cat.packed,
-    0
-  );
-  const totalItems = sampleCategories.reduce((sum, cat) => sum + cat.total, 0);
-  const progressPercent =
-    totalItems > 0 ? Math.round((totalPacked / totalItems) * 100) : 0;
+  const defaultCategories = {
+    essentials: { packed: 0, total: 3, priority: "high" },
+    clothing: { packed: 0, total: 3, priority: "high" },
+    toiletries: { packed: 0, total: 3, priority: "medium" },
+    electronics: { packed: 0, total: 3, priority: "medium" },
+    extras: { packed: 0, total: 3, priority: "low" },
+  };
+
+  const currentPackingState = state?.packingState || {
+    items: defaultItems,
+    categories: defaultCategories,
+    totalPacked: 0,
+    totalItems: defaultItems.length,
+    progress: 0,
+  };
+
+  const toggleItem = (itemId: string) => {
+    const updatedItems = currentPackingState.items.map((item) =>
+      item.id === itemId ? { ...item, packed: !item.packed } : item
+    );
+
+    // Recalculate categories
+    const updatedCategories = Object.keys(defaultCategories).reduce(
+      (acc, categoryKey) => {
+        const categoryItems = updatedItems.filter(
+          (item) => item.category === categoryKey
+        );
+        const packedCount = categoryItems.filter((item) => item.packed).length;
+
+        acc[categoryKey] = {
+          packed: packedCount,
+          total: categoryItems.length,
+          priority:
+            defaultCategories[categoryKey as keyof typeof defaultCategories]
+              .priority,
+        };
+        return acc;
+      },
+      {} as Record<string, { packed: number; total: number; priority: string }>
+    );
+
+    const totalPacked = updatedItems.filter((item) => item.packed).length;
+    const totalItems = updatedItems.length;
+    const progress =
+      totalItems > 0 ? Math.round((totalPacked / totalItems) * 100) : 0;
+
+    const newPackingState: PackingState = {
+      items: updatedItems,
+      categories: updatedCategories,
+      totalPacked,
+      totalItems,
+      progress,
+    };
+
+    setState({
+      ...state,
+      packingState: newPackingState,
+    });
+  };
+
+  const categoryOrder = [
+    "essentials",
+    "clothing",
+    "toiletries",
+    "electronics",
+    "extras",
+  ];
+  const categoryLabels = {
+    essentials: "Essentials",
+    clothing: "Clothing",
+    toiletries: "Toiletries",
+    electronics: "Electronics",
+    extras: "Extras",
+  };
 
   return (
     <div className="h-full flex flex-col p-4">
@@ -461,80 +610,89 @@ const PackingDashboard: React.FC<PackingDashboardProps> = ({
         </h3>
         <div className="flex items-center gap-3 mb-2">
           <span className="text-xs text-gray-600">
-            {totalPacked}/{totalItems} items packed
+            {currentPackingState.totalPacked}/{currentPackingState.totalItems}{" "}
+            items packed
           </span>
           <div className="flex-1 bg-gray-200 rounded-full h-2">
             <div
               className="bg-teal-500 h-2 rounded-full transition-all duration-500"
-              style={{ width: `${progressPercent}%` }}
+              style={{ width: `${currentPackingState.progress}%` }}
             ></div>
           </div>
           <span className="text-xs font-medium text-gray-800">
-            {progressPercent}%
+            {currentPackingState.progress}%
           </span>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-4">
-        {sampleCategories.map((category, index) => (
-          <div key={index} className="bg-white rounded-lg border p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="font-medium text-gray-900">
-                {category.name} ({category.packed}/{category.total})
-              </h4>
-              <span
-                className={`px-2 py-1 rounded-full text-xs ${
-                  category.priority === "high"
-                    ? "bg-red-100 text-red-700"
-                    : category.priority === "medium"
-                    ? "bg-yellow-100 text-yellow-700"
-                    : "bg-gray-100 text-gray-700"
-                }`}
-              >
-                {category.priority}
-              </span>
-            </div>
+        {categoryOrder.map((categoryKey) => {
+          const categoryData =
+            currentPackingState.categories[
+              categoryKey as keyof typeof currentPackingState.categories
+            ];
+          const categoryItems = currentPackingState.items.filter(
+            (item) => item.category === categoryKey
+          );
 
-            <div className="space-y-2">
-              {category.items.map((item, itemIndex) => (
-                <div
-                  key={itemIndex}
-                  className="flex items-center justify-between p-2 bg-gray-50 rounded"
+          return (
+            <div key={categoryKey} className="bg-white rounded-lg border p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-medium text-gray-900">
+                  {categoryLabels[categoryKey as keyof typeof categoryLabels]} (
+                  {categoryData.packed}/{categoryData.total})
+                </h4>
+                <span
+                  className={`px-2 py-1 rounded-full text-xs ${
+                    categoryData.priority === "high"
+                      ? "bg-red-100 text-red-700"
+                      : categoryData.priority === "medium"
+                      ? "bg-yellow-100 text-yellow-700"
+                      : "bg-gray-100 text-gray-700"
+                  }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={itemIndex < category.packed}
-                      onChange={() => {
-                        // Toggle packing state
-                        console.log("Toggle", item);
-                      }}
-                      className="w-4 h-4 text-teal-600"
-                    />
+                  {categoryData.priority}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {categoryItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between p-2 bg-gray-50 rounded"
+                  >
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={item.packed}
+                        onChange={() => toggleItem(item.id)}
+                        className="w-4 h-4 text-teal-600"
+                      />
+                      <span
+                        className={`text-sm ${
+                          item.packed
+                            ? "line-through text-gray-500"
+                            : "text-gray-900"
+                        }`}
+                      >
+                        {item.name}
+                      </span>
+                    </div>
                     <span
-                      className={`text-sm ${
-                        itemIndex < category.packed
-                          ? "line-through text-gray-500"
-                          : "text-gray-900"
+                      className={`text-xs px-2 py-1 rounded ${
+                        item.packed
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-600"
                       }`}
                     >
-                      {item}
+                      {item.packed ? "✓" : "○"}
                     </span>
                   </div>
-                  <span
-                    className={`text-xs px-2 py-1 rounded ${
-                      itemIndex < category.packed
-                        ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-gray-600"
-                    }`}
-                  >
-                    {itemIndex < category.packed ? "✓" : "○"}
-                  </span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {/* Agent Dashboard */}
         <div className="bg-white rounded-lg border p-4">
