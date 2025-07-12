@@ -1,4 +1,8 @@
 import uvicorn
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 from a2a.server.apps import A2AStarletteApplication
 from a2a.server.request_handlers import DefaultRequestHandler
@@ -15,10 +19,15 @@ from a2a.types import (
     Message
 )
 import openai
+import weave
+
+# Initialize Weave
+weave.init('a2a-finance-agent')
 
 class FinanceAgent:
     """Finance Agent."""
 
+    @weave.op
     async def invoke(self, message: Message) -> str:
         response = openai.chat.completions.create(
             model="gpt-4o",

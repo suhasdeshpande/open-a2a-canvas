@@ -1,4 +1,8 @@
 import uvicorn
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 from a2a.server.apps import A2AStarletteApplication
 from a2a.server.request_handlers import DefaultRequestHandler
@@ -15,10 +19,15 @@ from a2a.types import (
     Message
 )
 import openai
+import weave
+
+# Initialize Weave
+weave.init('a2a-it-agent')
 
 class ITAgent:
     """IT Agent."""
 
+    @weave.op
     async def invoke(self, message: Message) -> str:
         response = openai.chat.completions.create(
             model="gpt-4o",
@@ -43,7 +52,7 @@ skill = AgentSkill(
 public_agent_card = AgentCard(
     name='IT Agent',
     description='The IT Agent is in charge of the IT infrastructure. Set up new accounts, provision new devices, etc.',
-    url='http://localhost:9998/',
+    url='http://localhost:9995/',
     version='1.0.0',
     defaultInputModes=['text'],
     defaultOutputModes=['text'],
@@ -85,7 +94,7 @@ def main():
         extended_agent_card=public_agent_card,
     )
 
-    uvicorn.run(server.build(), host='0.0.0.0', port=9998)
+    uvicorn.run(server.build(), host='0.0.0.0', port=9995)
 
 if __name__ == '__main__':
     main()
