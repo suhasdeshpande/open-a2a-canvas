@@ -51,6 +51,8 @@ interface PackingItem {
   category: string;
   priority: "essential" | "recommended" | "optional";
   packed: boolean;
+  weight: number;
+  icon: string;
 }
 
 interface PackingState {
@@ -62,6 +64,7 @@ interface PackingState {
   progress: number;
   totalPacked: number;
   totalItems: number;
+  totalWeight: number;
 }
 
 // Agent Network Component
@@ -318,6 +321,7 @@ const AgentCanvas = () => {
     progress: 0,
     totalPacked: 0,
     totalItems: 0,
+    totalWeight: 0,
   });
 
   // Initialize default items if none exist
@@ -330,6 +334,8 @@ const AgentCanvas = () => {
           category: "essentials",
           priority: "essential",
           packed: false,
+          weight: 20,
+          icon: "📘",
         },
         {
           id: "clothes",
@@ -337,6 +343,8 @@ const AgentCanvas = () => {
           category: "clothing",
           priority: "essential",
           packed: false,
+          weight: 15,
+          icon: "👕",
         },
         {
           id: "sunscreen",
@@ -344,6 +352,8 @@ const AgentCanvas = () => {
           category: "toiletries",
           priority: "recommended",
           packed: false,
+          weight: 5,
+          icon: "🧴",
         },
         {
           id: "camera",
@@ -351,6 +361,8 @@ const AgentCanvas = () => {
           category: "electronics",
           priority: "optional",
           packed: false,
+          weight: 8,
+          icon: "📷",
         },
         {
           id: "chargers",
@@ -358,6 +370,8 @@ const AgentCanvas = () => {
           category: "electronics",
           priority: "recommended",
           packed: false,
+          weight: 10,
+          icon: "🔌",
         },
         {
           id: "medications",
@@ -365,14 +379,22 @@ const AgentCanvas = () => {
           category: "essentials",
           priority: "essential",
           packed: false,
+          weight: 15,
+          icon: "💊",
         },
       ];
+
+      const totalWeight = defaultItems.reduce(
+        (sum, item) => sum + item.weight,
+        0
+      );
 
       const initialPackingState: PackingState = {
         items: defaultItems,
         categories: {},
         progress: 0,
         totalPacked: 0,
+        totalWeight: totalWeight,
         totalItems: defaultItems.length,
       };
 
@@ -443,15 +465,20 @@ const AgentCanvas = () => {
             i.id === item.id ? { ...i, packed } : i
           );
 
-          const totalPacked = updatedItems.filter((i) => i.packed).length;
-          const progress = Math.round(
-            (totalPacked / updatedItems.length) * 100
+          const totalPackedWeight = updatedItems
+            .filter((i) => i.packed)
+            .reduce((sum, i) => sum + (i.weight || 1), 0);
+          const totalWeight = updatedItems.reduce(
+            (sum, i) => sum + (i.weight || 1),
+            0
           );
+          const progress = Math.round((totalPackedWeight / totalWeight) * 100);
 
           const newPackingState = {
             ...currentState,
             items: updatedItems,
-            totalPacked,
+            totalPacked: updatedItems.filter((i) => i.packed).length,
+            totalWeight: totalWeight,
             progress,
           };
 
@@ -466,9 +493,9 @@ const AgentCanvas = () => {
             }`
           );
 
-          return `✅ Marked ${item.name} as ${
+          return `✅ ${item.name} ${
             packed ? "packed" : "unpacked"
-          }! Progress: ${progress}%${packed ? " Great job! 🎒" : ""}`;
+          }! ${progress}%`;
         } else {
           const availableItems = currentState.items
             .map((i) => i.name)
@@ -513,6 +540,14 @@ Examples:
 - User says "Mark passport as packed" → Call markItemPacked(itemName="passport", packed=true)
 - User says "I packed my clothes" → Call markItemPacked(itemName="clothes", packed=true)
 - User says "Unpack the camera" → Call markItemPacked(itemName="camera", packed=false)
+
+# Response Style
+CRITICAL: Keep all responses EXTREMELY SHORT. Maximum 2-3 sentences. No long lists, no detailed guides, no comprehensive explanations. Be concise and direct.
+
+Examples of good responses:
+- "Pack light layers for Tokyo's fall weather. Don't forget a compact umbrella for rain."
+- "Essential: passport, phone, charger. Weather-appropriate clothes for 15-22°C."
+- "Tokyo tips: Carry cash, remove shoes indoors, bow when greeting."
 
 You can also:
 - Check their current packing progress with checkPackingStatus
@@ -819,6 +854,7 @@ const PackingDashboard: React.FC<PackingDashboardProps> = ({
     totalPacked: 0,
     totalItems: 0,
     progress: 0,
+    totalWeight: 0,
   };
 
   // Add Copilot action for updating packing state
@@ -876,12 +912,17 @@ const PackingDashboard: React.FC<PackingDashboardProps> = ({
   // Fallback progress calculation if state isn't updating
   const fallbackProgress = React.useMemo(() => {
     if (currentPackingState.totalItems === 0) return testProgress;
-    return (
-      currentPackingState.progress ||
-      Math.round(
-        (currentPackingState.totalPacked / currentPackingState.totalItems) * 100
-      )
-    );
+    if (currentPackingState.progress) return currentPackingState.progress;
+
+    // Calculate weighted progress
+    const items = currentPackingState.items || [];
+    const totalPackedWeight = items
+      .filter((i) => i.packed)
+      .reduce((sum, i) => sum + (i.weight || 1), 0);
+    const totalWeight = items.reduce((sum, i) => sum + (i.weight || 1), 0);
+    return totalWeight > 0
+      ? Math.round((totalPackedWeight / totalWeight) * 100)
+      : 0;
   }, [currentPackingState, testProgress]);
 
   // Use actual progress or fallback
@@ -907,21 +948,25 @@ const PackingDashboard: React.FC<PackingDashboardProps> = ({
 
     const newPackedState = !item.packed;
 
-    // Update local state immediately
+    // Update local state immediately with weighted calculation
     const updatedItems = currentPackingState.items.map((i) =>
       i.id === itemId ? { ...i, packed: newPackedState } : i
     );
 
-    const totalPacked = updatedItems.filter((i) => i.packed).length;
-    const progress =
-      updatedItems.length > 0
-        ? Math.round((totalPacked / updatedItems.length) * 100)
-        : 0;
+    const totalPackedWeight = updatedItems
+      .filter((i) => i.packed)
+      .reduce((sum, i) => sum + (i.weight || 1), 0);
+    const totalWeight = updatedItems.reduce(
+      (sum, i) => sum + (i.weight || 1),
+      0
+    );
+    const progress = Math.round((totalPackedWeight / totalWeight) * 100);
 
     const newPackingState = {
       ...currentPackingState,
       items: updatedItems,
-      totalPacked,
+      totalPacked: updatedItems.filter((i) => i.packed).length,
+      totalWeight: totalWeight,
       progress,
     };
 
@@ -1125,21 +1170,6 @@ const PackingDashboard: React.FC<PackingDashboardProps> = ({
                   {/* Category Items */}
                   <div className="p-3 space-y-2">
                     {items.map((item) => {
-                      // Item icons
-                      const itemIcons = {
-                        passport: "📘",
-                        phone: "📱",
-                        wallet: "💳",
-                        clothes: "👕",
-                        sunscreen: "🧴",
-                        camera: "📷",
-                        chargers: "🔌",
-                        medications: "💊",
-                      };
-
-                      const itemIcon =
-                        itemIcons[item.id as keyof typeof itemIcons] || "📦";
-
                       return (
                         <div
                           key={item.id}
@@ -1153,7 +1183,7 @@ const PackingDashboard: React.FC<PackingDashboardProps> = ({
                               onChange={() => handleItemToggle(item.id)}
                               className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                             />
-                            <span className="text-lg">{itemIcon}</span>
+                            <span className="text-lg">{item.icon || "📦"}</span>
                             <span
                               className={`font-medium ${
                                 item.packed

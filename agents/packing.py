@@ -91,23 +91,21 @@ class PackingAgent:
         response = openai.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": f"""You are the world's best packing coordinator and travel preparation specialist. You help travelers pack efficiently and comprehensively.
+                {"role": "system", "content": f"""You are a travel packing expert. Give EXTREMELY SHORT responses (1-2 sentences max).
 
 Current packing state:
 - Total items: {self.packing_state['totalItems']}
 - Packed items: {self.packing_state['totalPacked']}
 - Progress: {self.packing_state['progress']}%
 
-When providing packing advice:
-1. Reference the current packing state above
-2. Suggest specific items to pack next based on their priority
-3. Provide practical packing tips and strategies
-4. Help users organize and prioritize their packing
+Be concise and direct. No long lists or detailed explanations. Focus on the most important 2-3 items only.
 
-You can mark items as packed by saying "Mark [item name] as packed" in your response.
-You can check current status by asking about packing progress.
+Examples of good responses:
+- "Pack passport, phone, charger. Light layers for Tokyo weather."
+- "Essential: documents, medications. Weather gear for rain."
+- "Priority: passport and phone. Check weather for clothing."
 
-Structure your responses to be helpful and actionable. Focus on practical advice for the user's specific travel needs."""},
+Never write more than 25 words total."""},
                 {"role": "user", "content": user_message}
             ]
         )
@@ -171,17 +169,10 @@ Structure your responses to be helpful and actionable. Focus on practical advice
         packed_items = [item["name"] for item in self.packing_state["items"] if item["packed"]]
         unpacked_items = [item["name"] for item in self.packing_state["items"] if not item["packed"]]
 
-        status = f"""📦 **Packing Progress: {self.packing_state['progress']}%**
+        status = f"""📦 {self.packing_state['progress']}% packed
 
-✅ **Packed ({self.packing_state['totalPacked']} items):**
-{', '.join(packed_items) if packed_items else 'None yet'}
-
-⚪ **Still to Pack ({len(unpacked_items)} items):**
-{', '.join(unpacked_items) if unpacked_items else 'All packed!'}
-
-💡 **Tip:** {self._get_packing_tip()}
-
-Ready to help you pack more items! Just say "Mark [item name] as packed" when you're done with an item."""
+✅ Done: {', '.join(packed_items[:3]) if packed_items else 'None'}
+⚪ Next: {', '.join(unpacked_items[:3]) if unpacked_items else 'All set!'}"""
 
         return status
 
