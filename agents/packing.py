@@ -37,18 +37,43 @@ class PackingAgent:
     """Master Packing Agent that coordinates and synthesizes all packing recommendations."""
 
     def __init__(self):
+        # Initialize with default items matching frontend structure
+        self.default_items = [
+            {"id": "passport", "name": "Passport", "category": "essentials", "priority": "essential", "packed": False},
+            {"id": "phone", "name": "Phone", "category": "essentials", "priority": "essential", "packed": False},
+            {"id": "wallet", "name": "Wallet", "category": "essentials", "priority": "essential", "packed": False},
+            {"id": "tshirts", "name": "T-Shirts", "category": "clothing", "priority": "essential", "packed": False},
+            {"id": "pants", "name": "Pants", "category": "clothing", "priority": "essential", "packed": False},
+            {"id": "underwear", "name": "Underwear", "category": "clothing", "priority": "essential", "packed": False},
+            {"id": "toothbrush", "name": "Toothbrush", "category": "toiletries", "priority": "recommended", "packed": False},
+            {"id": "shampoo", "name": "Shampoo", "category": "toiletries", "priority": "recommended", "packed": False},
+            {"id": "deodorant", "name": "Deodorant", "category": "toiletries", "priority": "recommended", "packed": False},
+            {"id": "charger", "name": "Charger", "category": "electronics", "priority": "essential", "packed": False},
+            {"id": "camera", "name": "Camera", "category": "electronics", "priority": "recommended", "packed": False},
+            {"id": "headphones", "name": "Headphones", "category": "electronics", "priority": "optional", "packed": False},
+        ]
+
         self.packing_state = {
-            "items": {},
-            "categories": {
-                "essentials": {"packed": 0, "total": 3, "priority": "high"},
-                "clothing": {"packed": 0, "total": 3, "priority": "high"},
-                "toiletries": {"packed": 0, "total": 3, "priority": "medium"},
-                "electronics": {"packed": 0, "total": 3, "priority": "medium"},
-                "documents": {"packed": 0, "total": 0, "priority": "high"},
-                "extras": {"packed": 0, "total": 3, "priority": "low"}
-            },
-            "progress": 0
+            "items": self.default_items.copy(),
+            "categories": self._calculate_categories(self.default_items),
+            "progress": 0,
+            "totalPacked": 0,
+            "totalItems": len(self.default_items)
         }
+
+    def _calculate_categories(self, items):
+        """Calculate category statistics from items list"""
+        categories = {}
+        for item in items:
+            category = item["category"]
+            if category not in categories:
+                categories[category] = {"packed": 0, "total": 0, "priority": "medium"}
+
+            categories[category]["total"] += 1
+            if item["packed"]:
+                categories[category]["packed"] += 1
+
+        return categories
 
     @weave_op
     async def invoke(self, message: Message) -> str:
@@ -58,32 +83,40 @@ class PackingAgent:
         if "update_packing_state" in user_message.lower() or "mark_packed" in user_message.lower():
             return self._handle_packing_update(user_message)
 
-        # Generate packing recommendations
+        # Check if user is asking about packing status
+        if any(keyword in user_message.lower() for keyword in ["packing", "packed", "items", "progress", "status"]):
+            return self._get_packing_status()
+
+        # Generate packing recommendations and initialize state if needed
         response = openai.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": """You are the world's best packing coordinator and travel preparation specialist. You synthesize information from clothing experts, personal belongings specialists, documentation experts, destination researchers, and search results to create the ultimate packing strategy.
+                {"role": "system", "content": f"""You are the world's best packing coordinator and travel preparation specialist. You help travelers pack efficiently and comprehensively.
 
-You provide comprehensive, organized packing lists with categories (clothing, electronics, documents, toiletries, etc.), packing tips, weight distribution advice, and strategic recommendations. Consider factors like luggage restrictions, climate variations, trip duration, activities planned, and space optimization.
+Current packing state:
+- Total items: {self.packing_state['totalItems']}
+- Packed items: {self.packing_state['totalPacked']}
+- Progress: {self.packing_state['progress']}%
 
-Create prioritized lists with 'essential', 'recommended', and 'optional' items. Provide packing order suggestions and travel day tips. Your goal is to ensure travelers are perfectly prepared without overpacking.
+When providing packing advice:
+1. Reference the current packing state above
+2. Suggest specific items to pack next based on their priority
+3. Provide practical packing tips and strategies
+4. Help users organize and prioritize their packing
 
-When providing recommendations, structure them clearly by category:
-- **Essentials** (passport, phone, wallet, etc.)
-- **Clothing** (weather-appropriate attire)
-- **Toiletries** (personal care items)
-- **Electronics** (chargers, devices, adapters)
-- **Documents** (tickets, insurance, visas)
-- **Extras** (entertainment, comfort items)
+You can mark items as packed by saying "Mark [item name] as packed" in your response.
+You can check current status by asking about packing progress.
 
-For each item, indicate the priority level (essential/recommended/optional) and quantity needed."""},
+Structure your responses to be helpful and actionable. Focus on practical advice for the user's specific travel needs."""},
                 {"role": "user", "content": user_message}
             ]
         )
 
-        # Parse the response to extract items and update state
         recommendations = response.choices[0].message.content
-        self._extract_items_from_recommendations(recommendations)
+
+        # Parse response for any packing commands
+        if "mark" in recommendations.lower() and "packed" in recommendations.lower():
+            self._parse_recommendations_for_updates(recommendations)
 
         return recommendations
 
@@ -97,87 +130,91 @@ For each item, indicate the priority level (essential/recommended/optional) and 
                 item_name = " ".join(parts[2:])  # rest is item name
 
                 # Find and update the item in our state
-                self._update_item_status(item_name, action == "packed")
+                was_updated = self._update_item_status(item_name, action == "packed")
 
-        # Return current state
-        total_items = sum(cat["total"] for cat in self.packing_state["categories"].values())
-        packed_items = sum(cat["packed"] for cat in self.packing_state["categories"].values())
-        progress = int((packed_items / total_items * 100)) if total_items > 0 else 0
+                if was_updated:
+                    status = self._get_packing_status()
+                    # Add explicit state update command for frontend parsing
+                    return f"update_packing_state: {action} {item_name}\n\n{status}"
 
-        return f"""Packing Progress Update:
-
-**Current Status:** {packed_items}/{total_items} items packed ({progress}%)
-
-**By Category:**
-- Essentials: {self.packing_state['categories']['essentials']['packed']}/{self.packing_state['categories']['essentials']['total']}
-- Clothing: {self.packing_state['categories']['clothing']['packed']}/{self.packing_state['categories']['clothing']['total']}
-- Toiletries: {self.packing_state['categories']['toiletries']['packed']}/{self.packing_state['categories']['toiletries']['total']}
-- Electronics: {self.packing_state['categories']['electronics']['packed']}/{self.packing_state['categories']['electronics']['total']}
-- Documents: {self.packing_state['categories']['documents']['packed']}/{self.packing_state['categories']['documents']['total']}
-- Extras: {self.packing_state['categories']['extras']['packed']}/{self.packing_state['categories']['extras']['total']}
-
-Ready to help you pack more efficiently!"""
+        return self._get_packing_status()
 
     def _update_item_status(self, item_name: str, packed: bool):
         """Update the packed status of an item"""
-        # Find which category this item belongs to and update counts
         item_name_lower = item_name.lower()
+        item_updated = False
 
-        # Map items to categories (simplified)
-        item_category_map = {
-            'passport': 'essentials',
-            'phone': 'essentials',
-            'wallet': 'essentials',
-            't-shirts': 'clothing',
-            'pants': 'clothing',
-            'underwear': 'clothing',
-            'toothbrush': 'toiletries',
-            'shampoo': 'toiletries',
-            'deodorant': 'toiletries',
-            'charger': 'electronics',
-            'camera': 'electronics',
-            'headphones': 'electronics',
-            'books': 'extras',
-            'snacks': 'extras',
-            'games': 'extras'
-        }
+        # Find the item by name (fuzzy matching)
+        for item in self.packing_state["items"]:
+            item_dict_name = item["name"].lower()
+            if (item_dict_name == item_name_lower or
+                item_name_lower in item_dict_name or
+                item_dict_name in item_name_lower):
 
-        category = item_category_map.get(item_name_lower)
-        if category and category in self.packing_state["categories"]:
-            if packed:
-                self.packing_state["categories"][category]["packed"] = min(
-                    self.packing_state["categories"][category]["packed"] + 1,
-                    self.packing_state["categories"][category]["total"]
-                )
-            else:
-                self.packing_state["categories"][category]["packed"] = max(
-                    self.packing_state["categories"][category]["packed"] - 1,
-                    0
-                )
+                old_status = item["packed"]
+                item["packed"] = packed
+                if old_status != packed:
+                    item_updated = True
+                    print(f"✅ Updated {item['name']}: {old_status} -> {packed}")
+                break
 
-    def _extract_items_from_recommendations(self, recommendations: str):
-        """Extract and categorize items from recommendations text"""
-        # Simple parsing - in a real implementation this would be more sophisticated
+        if item_updated:
+            # Recalculate totals
+            self.packing_state["totalPacked"] = sum(1 for item in self.packing_state["items"] if item["packed"])
+            self.packing_state["progress"] = int((self.packing_state["totalPacked"] / self.packing_state["totalItems"] * 100)) if self.packing_state["totalItems"] > 0 else 0
+            self.packing_state["categories"] = self._calculate_categories(self.packing_state["items"])
+
+        return item_updated
+
+    def _get_packing_status(self) -> str:
+        """Return current packing status"""
+        packed_items = [item["name"] for item in self.packing_state["items"] if item["packed"]]
+        unpacked_items = [item["name"] for item in self.packing_state["items"] if not item["packed"]]
+
+        status = f"""📦 **Packing Progress: {self.packing_state['progress']}%**
+
+✅ **Packed ({self.packing_state['totalPacked']} items):**
+{', '.join(packed_items) if packed_items else 'None yet'}
+
+⚪ **Still to Pack ({len(unpacked_items)} items):**
+{', '.join(unpacked_items) if unpacked_items else 'All packed!'}
+
+💡 **Tip:** {self._get_packing_tip()}
+
+Ready to help you pack more items! Just say "Mark [item name] as packed" when you're done with an item."""
+
+        return status
+
+    def _get_packing_tip(self) -> str:
+        """Get a relevant packing tip based on current progress"""
+        progress = self.packing_state['progress']
+        if progress == 0:
+            return "Start with essentials like passport, phone, and wallet!"
+        elif progress < 50:
+            return "Focus on clothing and toiletries next - pack heaviest items first."
+        elif progress < 80:
+            return "Don't forget electronics and their chargers!"
+        else:
+            return "Almost done! Double-check your essentials and documents."
+
+    def _parse_recommendations_for_updates(self, recommendations: str):
+        """Parse recommendations text for packing update commands"""
         lines = recommendations.lower().split('\n')
-        current_category = None
-
         for line in lines:
-            line = line.strip()
-            if 'essential' in line:
-                current_category = 'essentials'
-            elif 'clothing' in line:
-                current_category = 'clothing'
-            elif 'toiletries' in line or 'personal care' in line:
-                current_category = 'toiletries'
-            elif 'electronics' in line or 'device' in line:
-                current_category = 'electronics'
-            elif 'document' in line:
-                current_category = 'documents'
-            elif 'extra' in line or 'entertainment' in line:
-                current_category = 'extras'
-            elif line.startswith('-') or line.startswith('*') and current_category:
-                # Found an item, increment total for category
-                self.packing_state["categories"][current_category]["total"] += 1
+            if 'mark' in line and 'packed' in line:
+                # Extract item name between "mark" and "packed"
+                try:
+                    start = line.find('mark') + 4
+                    end = line.find('packed')
+                    if start < end:
+                        item_name = line[start:end].strip()
+                        self._update_item_status(item_name, True)
+                except:
+                    continue
+
+    def get_state_for_frontend(self):
+        """Get state in format expected by frontend"""
+        return self.packing_state
 
 skill = AgentSkill(
     id='packing_agent',
